@@ -2,35 +2,8 @@ package bubble
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
+	my_slice_utils "justbeyourselfandenjoy/sorting/utils"
 )
-
-func makeRandomSlice(numItems, max int) []int {
-	slice := make([]int, numItems)
-	random := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for i := range slice {
-		slice[i] = random.Intn(max)
-	}
-	return slice
-}
-
-func printSlice(slice []int, numItems int) {
-	fmt.Printf("%v", slice[:min(len(slice), numItems)])
-}
-
-func checkSorted(slice []int) {
-	prev := slice[0]
-	for i := range slice {
-		if slice[i] < prev {
-			fmt.Println("The slice is NOT sorted!")
-			return
-		} else {
-			prev = slice[i]
-		}
-	}
-	fmt.Println("The slice is sorted")
-}
 
 func bubbleSort(slice []int) {
 	n := len(slice)
@@ -57,14 +30,16 @@ func BubbleSortRun() {
 	fmt.Scanln(&max)
 
 	// Make and display an unsorted slice.
-	slice := makeRandomSlice(numItems, max)
-	printSlice(slice, 40)
+
+	slice := my_slice_utils.MakeRandomSlice(numItems, max)
+	my_slice_utils.PrintSlice(slice, 40)
 	fmt.Println()
 
 	// Sort and display the result.
 	bubbleSort(slice)
-	printSlice(slice, 40)
+	my_slice_utils.PrintSlice(slice, 40)
+	fmt.Println()
 
 	// Verify that it's sorted.
-	checkSorted(slice)
+	my_slice_utils.CheckSorted(slice)
 }
