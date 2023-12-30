@@ -11,15 +11,24 @@ func partition(slice []int) int {
 	pivot := slice[hi]
 	i := lo - 1
 
+	fmt.Printf("Initial values lo=%v hi=%v pivot=%v i=%v\n", lo, hi, pivot, i)
 	for j := range slice {
+		fmt.Println("Ranging the slice with j=", j)
 		if slice[j] <= pivot {
+			fmt.Printf("slice[%v] <= pivot (%v<=%v)\n", j, slice[j], pivot)
 			i++
+			fmt.Printf("Slice before the swap [%v]<=>[%v] %v\n", i, j, slice)
 			slice[i], slice[j] = slice[j], slice[i]
+			fmt.Printf("Slice after the swap [%v]<=>[%v] %v\n", i, j, slice)
 		}
 	}
-
-	i++
+	fmt.Printf("i before i++: %v\n", i)
+	if i < hi {
+		i++
+	}
+	fmt.Printf("Slice before the final swap [%v] <=> [%v]: %v\n", i, hi, slice)
 	slice[i], slice[hi] = slice[hi], slice[i]
+	fmt.Printf("Slice after the final swap [%v] <=> [%v]: %v\n", i, hi, slice)
 	return i
 }
 
