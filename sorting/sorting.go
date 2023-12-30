@@ -2,10 +2,10 @@ package main
 
 import (
 	"justbeyourselfandenjoy/sorting/bubble"
-	"justbeyourselfandenjoy/sorting/quicksort"
+	"justbeyourselfandenjoy/sorting/quick"
 )
 
 func main() {
 	bubble.BubbleSortRun()
-	quicksort.QuickSortRun()
+	quick.QuickSortRun()
 }

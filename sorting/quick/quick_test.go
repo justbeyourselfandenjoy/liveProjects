@@ -1,4 +1,4 @@
-package quicksort
+package quick
 
 import (
 	my_slice_utils "justbeyourselfandenjoy/sorting/utils"
