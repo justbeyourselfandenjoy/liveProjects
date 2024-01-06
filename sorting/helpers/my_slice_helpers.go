@@ -1,4 +1,4 @@
-package my_slice_utils
+package my_slice_helpers
 
 import (
 	"fmt"

@@ -1,13 +1,13 @@
 package quick
 
 import (
-	my_slice_utils "justbeyourselfandenjoy/sorting/utils"
+	my_slice_helpers "justbeyourselfandenjoy/sorting/helpers"
 	"slices"
 	"testing"
 )
 
 func TestQuickSort(t *testing.T) {
-	slice_origin_1 := my_slice_utils.MakeRandomSlice(100, 200)
+	slice_origin_1 := my_slice_helpers.MakeRandomSlice(100, 200)
 	slice_origin_2 := make([]int, 100)
 	copy(slice_origin_2, slice_origin_1)
 	quickSort(slice_origin_1)
