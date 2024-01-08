@@ -4,15 +4,22 @@ import (
 	"fmt"
 	my_slice_helpers "justbeyourselfandenjoy/sorting/helpers"
 	"justbeyourselfandenjoy/sorting/quick"
+	"math"
 	"strconv"
 )
 
 func binarySearch(slice []int, target int) (index, numTests int) {
 	index, numTests = -1, 0
-	for i := range slice {
+	L, R := 0, len(slice)-1
+	for L <= R {
 		numTests++
-		if slice[i] == target {
-			index = i
+		m := (int)(math.Floor(float64((L + R) / 2)))
+		if slice[m] < target {
+			L = m + 1
+		} else if slice[m] > target {
+			R = m - 1
+		} else {
+			index = m
 			return
 		}
 	}
