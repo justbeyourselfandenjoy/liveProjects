@@ -7,8 +7,7 @@ import (
 )
 
 func linearSearch(slice []int, target int) (index, numTests int) {
-	index = -1
-	numTests = 0
+	index, numTests = -1, 0
 	for i := range slice {
 		numTests++
 		if slice[i] == target {
