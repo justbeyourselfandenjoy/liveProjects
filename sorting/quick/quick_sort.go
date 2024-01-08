@@ -5,6 +5,8 @@ import (
 	my_slice_helpers "justbeyourselfandenjoy/sorting/helpers"
 )
 
+var QuickSort = quickSort
+
 func partition(slice []int) int {
 	hi, i := len(slice)-1, -1
 	pivot := slice[hi]
