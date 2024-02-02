@@ -57,25 +57,20 @@ func (list *LinkedList) addRange(values []string) {
 }
 
 func (list *LinkedList) toString(separator string) string {
-	top := list.sentinel
-	cell := top.next
-	r := ""
-	for cell != nil {
-		r += cell.data
+	result := ""
+	for cell := list.sentinel.next; cell != nil; cell = cell.next {
+		result += cell.data
 		if cell.next != nil {
-			r += separator
+			result += separator
 		}
-		cell = cell.next
 	}
-	return r
+	return result
 }
 
 func (list *LinkedList) length() (len int) {
 	len = 0
-	lastCell := list.sentinel
-	for lastCell.next != nil {
+	for cell := list.sentinel.next; cell != nil; cell = cell.next {
 		len++
-		lastCell = lastCell.next
 	}
 	return
 }
