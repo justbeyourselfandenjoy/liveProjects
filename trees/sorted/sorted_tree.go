@@ -63,6 +63,24 @@ func (node *Node) findValue(value string) *Node {
 	}
 }
 
+func (node *Node) isSorted() bool {
+	isSorted := true
+	if node.left != nil {
+		if node.data > node.left.data {
+			isSorted = node.left.isSorted()
+		} else {
+			return false
+		}
+	}
+	if isSorted && node.right != nil {
+		if node.data < node.right.data {
+			isSorted = node.right.isSorted()
+		}
+
+	}
+	return isSorted
+}
+
 func SortedTreeRun() {
 	// Make a root node to act as sentinel.
 	root := Node{"", nil, nil}
@@ -81,8 +99,15 @@ func SortedTreeRun() {
 	// Add F.
 	root.insertValue("F")
 
+	fmt.Println("Sorted? ", root.isSorted())
 	// Display the values in sorted order.
 	fmt.Printf("Sorted values: %s\n", root.right.inorder())
+	/*
+		root.right.left = &Node{"X", nil, nil}
+		fmt.Println("Sorted (+X)? ", root.isSorted())
+		// Display the values in sorted order.
+		fmt.Printf("Sorted values: %s\n", root.right.inorder())
+	*/
 
 	// Let the user search for values.
 	for {

@@ -99,6 +99,24 @@ func buildTree() *Node {
 	return &aNode
 }
 
+func (node *Node) isSorted() bool {
+	isSorted := true
+	if node.left != nil {
+		if node.data > node.left.data {
+			isSorted = node.left.isSorted()
+		} else {
+			return false
+		}
+	}
+	if isSorted && node.right != nil {
+		if node.data < node.right.data {
+			isSorted = node.right.isSorted()
+		}
+
+	}
+	return isSorted
+}
+
 func (node *Node) displayIndented(indent string, depth int) string {
 	result := strings.Repeat(indent, depth) + node.data + "\n"
 	if node.left != nil {
@@ -173,6 +191,7 @@ func UnsortedTreeRun() {
 	// Build a tree.
 	aNode := buildTree()
 
+	fmt.Println("Sorted? ", aNode.isSorted())
 	// Display with indentation.
 	fmt.Println(aNode.displayIndented("  ", 0))
 
