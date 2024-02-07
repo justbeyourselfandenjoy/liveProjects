@@ -1,7 +1,11 @@
 package main
 
-import factorial "justbeyourselfandenjoy/recursion/factorial"
+import (
+	"justbeyourselfandenjoy/recursion/factorial"
+	"justbeyourselfandenjoy/recursion/fibonacci"
+)
 
 func main() {
 	factorial.RunFactorial()
+	fibonacci.FibonacciRun()
 }
