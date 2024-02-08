@@ -8,4 +8,5 @@ import (
 func main() {
 	factorial.RunFactorial()
 	fibonacci.FibonacciRun()
+	fibonacci.DynamicFibonacciRun()
 }
