@@ -1,12 +1,14 @@
 package main
 
 import (
-	"justbeyourselfandenjoy/recursion/factorial"
-	"justbeyourselfandenjoy/recursion/fibonacci"
+	knightstour "justbeyourselfandenjoy/recursion/knights_tour"
 )
 
 func main() {
-	factorial.RunFactorial()
-	fibonacci.FibonacciRun()
-	fibonacci.DynamicFibonacciRun()
+	/*
+		factorial.RunFactorial()
+		fibonacci.FibonacciRun()
+		fibonacci.DynamicFibonacciRun()
+	*/
+	knightstour.KnightsTourRun()
 }
