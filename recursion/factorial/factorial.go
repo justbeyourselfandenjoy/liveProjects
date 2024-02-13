@@ -36,6 +36,8 @@ func bigFactorial(n *big.Int) *big.Int {
 }
 
 func RunFactorial() {
+	fmt.Println("Running RunFactorial()")
+
 	var n int64
 	for n = 0; n <= 21; n++ {
 		fmt.Printf("%3d! = %20d\n", n, factorial(n))

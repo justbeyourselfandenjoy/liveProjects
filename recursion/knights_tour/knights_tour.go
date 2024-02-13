@@ -112,6 +112,8 @@ func findTour(board [][]int, numRows, numCols, curRow, curCol, numVisited int) b
 }
 
 func KnightsTourRun() {
+	fmt.Println("Running KnightsTourRun()")
+
 	numCalls = 0
 
 	// Initialize the move offsets.

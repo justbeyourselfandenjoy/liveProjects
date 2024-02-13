@@ -48,6 +48,8 @@ func fibonacciBottomUp(n int64) int64 {
 }
 
 func DynamicFibonacciRun() {
+	fmt.Println("Running DynamicFibonacciRun()")
+
 	// Fill-on-the-fly.
 	fibonacciValues = make([]int64, 2)
 	fibonacciValues[0] = 0

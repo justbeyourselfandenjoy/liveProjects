@@ -13,6 +13,7 @@ func fibonacci(n int64) int64 {
 }
 
 func FibonacciRun() {
+	fmt.Println("Running FibonacciRun()")
 	for {
 		// Get n as a string.
 		var nString string
