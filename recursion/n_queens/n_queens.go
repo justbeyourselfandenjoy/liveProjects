@@ -113,16 +113,39 @@ func placeQueens1(board [][]string, numRows, r, c, numPlaced int) bool {
 	return false
 }
 
+// Try to place a queen in this column.
+// Return true if we find a legal board.
+func placeQueens4(board [][]string, numRows, c int) bool {
+	if c == numRows {
+		if boardIsLegal(board) {
+			return true
+		}
+		return false
+	}
+	if !boardIsLegal(board) {
+		return false
+	}
+	for r := 0; r < numRows; r++ {
+		board[r][c] = "Q"
+		if placeQueens4(board, numRows, c+1) {
+			return true
+		}
+		board[r][c] = "."
+	}
+	return false
+}
+
 func NQueensRun() {
 	fmt.Println("Running NQueensRun()")
 
-	const numRows = 7
+	const numRows = 27
 	board := makeBoard(numRows)
 
 	start := time.Now()
-	success := placeQueens1(board, numRows, 0, 0, 0)
+	//	success := placeQueens1(board, numRows, 0, 0, 0)
 	//success := placeQueens2(board, numRows, 0, 0, 0)
 	//success := placeQueens3(board, numRows, 0, 0, 0)
+	success := placeQueens4(board, numRows, 0)
 
 	elapsed := time.Since(start)
 	if success {
