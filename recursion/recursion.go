@@ -5,6 +5,7 @@ import (
 	"justbeyourselfandenjoy/recursion/fibonacci"
 	knightstour "justbeyourselfandenjoy/recursion/knights_tour"
 	nqueens "justbeyourselfandenjoy/recursion/n_queens"
+	towerofhanoi "justbeyourselfandenjoy/recursion/tower_of_hanoi"
 )
 
 func main() {
@@ -13,4 +14,5 @@ func main() {
 	fibonacci.DynamicFibonacciRun()
 	knightstour.KnightsTourRun()
 	nqueens.NQueensRun()
+	towerofhanoi.TowerOfHanoiRun()
 }

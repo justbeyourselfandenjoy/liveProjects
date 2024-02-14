@@ -138,7 +138,7 @@ func placeQueens4(board [][]string, numRows, c int) bool {
 func NQueensRun() {
 	fmt.Println("Running NQueensRun()")
 
-	const numRows = 28
+	const numRows = 8
 	board := makeBoard(numRows)
 
 	start := time.Now()
