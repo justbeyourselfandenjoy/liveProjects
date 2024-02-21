@@ -1,4 +1,4 @@
-package quadraticprobing
+package doublehashing
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 )
 
 // djb2 hash function. See http://www.cse.yorku.ca/~oz/hash.html.
-func hash(value string) int {
+func hash1(value string) int {
 	hash := 5381
 	for _, ch := range value {
 		hash = ((hash << 5) + hash) + int(ch)
@@ -20,23 +20,45 @@ func hash(value string) int {
 	return hash
 }
 
+// Jenkins one_at_a_time hash function.
+// See https://en.wikipedia.org/wiki/Jenkins_hash_function
+func hash2(value string) int {
+	hash := 0
+	for _, ch := range value {
+		hash += int(ch)
+		hash += hash << 10
+		hash ^= hash >> 6
+	}
+
+	// Make sure the result is non-negative.
+	if hash < 0 {
+		hash = -hash
+	}
+
+	// Make sure the result is not 0.
+	if hash == 0 {
+		hash = 1
+	}
+	return hash
+}
+
 type Employee struct {
 	name    string
 	phone   string
 	deleted bool
 }
 
-type QuadraticProbingHashTable struct {
+type DoubleHashTable struct {
 	capacity  int
 	employees []*Employee
 }
 
-// Initialize a QuadraticProbingHashTable and return a pointer to it.
-func NewQuadraticProbingHashTable(capacity int) *QuadraticProbingHashTable {
-	return &QuadraticProbingHashTable{capacity: capacity, employees: make([]*Employee, capacity)}
+// Initialize a DoubleHashTable and return a pointer to it.
+func NewDoubleHashTable(capacity int) *DoubleHashTable {
+	return &DoubleHashTable{capacity: capacity, employees: make([]*Employee, capacity)}
 }
 
-func (hashTable *QuadraticProbingHashTable) dump() {
+func (hashTable *DoubleHashTable) dump() {
 	for i, v := range hashTable.employees {
 		if v == nil {
 			fmt.Printf("%2d: ---\n", i)
@@ -53,14 +75,16 @@ func (hashTable *QuadraticProbingHashTable) dump() {
 // Return the key's index or where it would be if present and
 // the probe sequence length.
 // If the key is not present and the table is full, return -1 for the index.
-func (hashTable *QuadraticProbingHashTable) find(name string) (int, int) {
+func (hashTable *DoubleHashTable) find(name string) (int, int) {
 	// Hash the key.
-	hash := hash(name) % hashTable.capacity
+	hash1 := hash1(name) % hashTable.capacity
+	hash2 := hash2(name) % hashTable.capacity
+
 	deletedIndex := -1
 
 	// Probe up to hashTable.capacity times.
 	for i := 0; i < hashTable.capacity; i++ {
-		index := (hash + i*i) % hashTable.capacity // Quadratic probing.
+		index := (hash1 + i*hash2) % hashTable.capacity // Double hashing.
 
 		// If this spot is empty, the value isn't in the table.
 		if hashTable.employees[index] == nil {
@@ -95,7 +119,7 @@ func (hashTable *QuadraticProbingHashTable) find(name string) (int, int) {
 }
 
 // Add an item to the hash table.
-func (hashTable *QuadraticProbingHashTable) set(name string, phone string) {
+func (hashTable *DoubleHashTable) set(name string, phone string) {
 	i, _ := hashTable.find(name)
 	if i < 0 {
 		panic("Hash table overflow")
@@ -110,7 +134,7 @@ func (hashTable *QuadraticProbingHashTable) set(name string, phone string) {
 }
 
 // Return an item from the hash table.
-func (hashTable *QuadraticProbingHashTable) get(name string) string {
+func (hashTable *DoubleHashTable) get(name string) string {
 	i, _ := hashTable.find(name)
 	if i < 0 || hashTable.employees[i] == nil {
 		return ""
@@ -119,7 +143,7 @@ func (hashTable *QuadraticProbingHashTable) get(name string) string {
 }
 
 // Return true if the person is in the hash table.
-func (hashTable *QuadraticProbingHashTable) contains(name string) bool {
+func (hashTable *DoubleHashTable) contains(name string) bool {
 	i, _ := hashTable.find(name)
 	if i < 0 || hashTable.employees[i] == nil || hashTable.employees[i].deleted {
 		return false
@@ -128,7 +152,7 @@ func (hashTable *QuadraticProbingHashTable) contains(name string) bool {
 }
 
 // Delete this key's entry.
-func (hashTable *QuadraticProbingHashTable) delete(name string) {
+func (hashTable *DoubleHashTable) delete(name string) {
 	i, _ := hashTable.find(name)
 	if i > -1 && hashTable.employees[i] != nil {
 		hashTable.employees[i].deleted = true
@@ -137,17 +161,19 @@ func (hashTable *QuadraticProbingHashTable) delete(name string) {
 }
 
 // Show this key's probe sequence.
-func (hashTable *QuadraticProbingHashTable) probe(name string) int {
+func (hashTable *DoubleHashTable) probe(name string) int {
 	// Hash the key.
-	hash := hash(name) % hashTable.capacity
-	fmt.Printf("Probing %s (%d)\n", name, hash)
+	hash1 := hash1(name) % hashTable.capacity
+	hash2 := hash2(name) % hashTable.capacity
+
+	fmt.Printf("Probing %s (%d, %d)\n", name, hash1, hash2)
 
 	// Keep track of a deleted spot if we find one.
 	deletedIndex := -1
 
 	// Probe up to hashTable.capacity times.
 	for i := 0; i < hashTable.capacity; i++ {
-		index := (hash + i*i) % hashTable.capacity // Quadratic probing.
+		index := (hash1 + i*hash2) % hashTable.capacity // Double hashing.
 
 		fmt.Printf("    %d: ", index)
 		if hashTable.employees[index] == nil {
@@ -200,7 +226,7 @@ func (hashTable *QuadraticProbingHashTable) probe(name string) int {
 }
 
 // Make a display showing whether each array entry is nil.
-func (hashTable *QuadraticProbingHashTable) dumpConcise() {
+func (hashTable *DoubleHashTable) dumpConcise() {
 	// Loop through the array.
 	for i, employee := range hashTable.employees {
 		if employee == nil {
@@ -222,7 +248,7 @@ func (hashTable *QuadraticProbingHashTable) dumpConcise() {
 }
 
 // Return the average probe sequence length for the items in the table.
-func (hashTable *QuadraticProbingHashTable) aveProbeSequenceLength() float32 {
+func (hashTable *DoubleHashTable) aveProbeSequenceLength() float32 {
 	totalLength := 0
 	numValues := 0
 	for _, employee := range hashTable.employees {
@@ -235,7 +261,7 @@ func (hashTable *QuadraticProbingHashTable) aveProbeSequenceLength() float32 {
 	return float32(totalLength) / float32(numValues)
 }
 
-func QuadraticProbingRemovingRun() {
+func DoubleHashingRun() {
 	fmt.Println("Running QuadraticProbingRemovingRun()")
 	// Make some names.
 	employees := []Employee{
@@ -248,7 +274,7 @@ func QuadraticProbingRemovingRun() {
 		{"Gina Gable", "202-555-0107", false},
 	}
 
-	hashTable := NewQuadraticProbingHashTable(10)
+	hashTable := NewDoubleHashTable(10)
 	for _, employee := range employees {
 		hashTable.set(employee.name, employee.phone)
 	}
@@ -282,7 +308,7 @@ func QuadraticProbingRemovingRun() {
 	random := rand.New(rand.NewSource(12345)) // Initialize with a fixed seed
 	// random := rand.New(rand.NewSource(time.Now().UnixNano())) // Initialize with a changing seed
 	bigCapacity := 1009
-	bigHashTable := NewQuadraticProbingHashTable(bigCapacity)
+	bigHashTable := NewDoubleHashTable(bigCapacity)
 	numItems := int(float32(bigCapacity) * 0.9)
 	for i := 0; i < numItems; i++ {
 		str := fmt.Sprintf("%d-%d", i, random.Intn(1000000))
