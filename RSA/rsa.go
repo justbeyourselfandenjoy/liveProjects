@@ -6,6 +6,7 @@ import (
 	eulerssieve "justbeyourselfandenjoy/RSA/eulers_sieve"
 	"justbeyourselfandenjoy/RSA/factor"
 	fastexp "justbeyourselfandenjoy/RSA/fast_exp"
+	"justbeyourselfandenjoy/RSA/primality"
 )
 
 func main() {
@@ -14,4 +15,5 @@ func main() {
 	eratosthenessieve.EratosthenesSieveRun()
 	eulerssieve.EulersSieveRun()
 	factor.FactorNumbersRun()
+	primality.PrimalityTestRun()
 }

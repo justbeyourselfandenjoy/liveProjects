@@ -37,13 +37,14 @@ func fastExpMod(num, pow, mod int) int {
 	result := 1
 	for pow > 1 {
 		if pow%2 == 1 {
-			result *= num % mod
+			result = (result * num) % mod
 			pow--
 		}
-		num *= num % mod
+		num = (num * num) % mod
 		pow /= 2
 	}
-	return num * result % mod
+	return (num * result) % mod
+
 }
 
 func FastExtRun() {
