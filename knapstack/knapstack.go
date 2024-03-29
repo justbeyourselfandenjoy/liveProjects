@@ -136,10 +136,51 @@ func doExhaustiveSearch(items []Item, allowedWeight, nextIndex int) ([]Item, int
 	solutionWOItem, totalValueWOItem, callsNumberWOItem := doExhaustiveSearch(items, allowedWeight, nextIndex+1)
 
 	if totalValueWItem >= totalValueWOItem {
-		return solutionWItem, totalValueWItem, callsNumberWItem + 1
+		return solutionWItem, totalValueWItem, callsNumberWItem + callsNumberWOItem + 1
 	}
 
-	return solutionWOItem, totalValueWOItem, callsNumberWOItem + 1
+	return solutionWOItem, totalValueWOItem, callsNumberWItem + callsNumberWOItem + 1
+}
+
+func branchAndBound(items []Item, allowedWeight int) ([]Item, int, int) {
+	bestValue := 0
+	currentValue := 0
+	currentWeight := 0
+	remainingValue := sumValues(items, true)
+
+	return doBranchAndBound(items, allowedWeight, 0, bestValue, currentValue, currentWeight, remainingValue)
+}
+
+func doBranchAndBound(items []Item, allowedWeight, nextIndex, bestValue, currentValue, currentWeight, remainingValue int) ([]Item, int, int) {
+
+	if nextIndex >= len(items) {
+		return copyItems(items), currentValue, 1
+	}
+
+	if currentValue+remainingValue <= bestValue {
+		return nil, currentValue, 1
+	}
+
+	solutionWItem, totalValueWItem, callsNumberWItem := []Item(nil), 0, 1
+	if currentWeight+items[nextIndex].weight <= allowedWeight {
+		items[nextIndex].isSelected = true
+		solutionWItem, totalValueWItem, callsNumberWItem = doBranchAndBound(items, allowedWeight, nextIndex+1, bestValue, currentValue+items[nextIndex].value, currentWeight+items[nextIndex].weight, remainingValue-items[nextIndex].value)
+		if totalValueWItem > bestValue {
+			bestValue = totalValueWItem
+		}
+	}
+
+	solutionWOItem, totalValueWOItem, callsNumberWOItem := []Item(nil), 0, 1
+	if currentValue+remainingValue-items[nextIndex].value > bestValue {
+		items[nextIndex].isSelected = false
+		solutionWOItem, totalValueWOItem, callsNumberWOItem = doBranchAndBound(items, allowedWeight, nextIndex+1, bestValue, currentValue, currentWeight, remainingValue-items[nextIndex].value)
+	}
+
+	if totalValueWItem >= totalValueWOItem {
+		return solutionWItem, totalValueWItem, callsNumberWItem + callsNumberWOItem + 1
+	}
+
+	return solutionWOItem, totalValueWOItem, callsNumberWItem + callsNumberWOItem + 1
 }
 
 func main() {
@@ -161,5 +202,7 @@ func main() {
 	} else {
 		fmt.Println("*** Exhaustive Search ***")
 		runAlgorithm(exhaustiveSearch, items, allowedWeight)
+		fmt.Println("*** Branch and Bound Search ***")
+		runAlgorithm(branchAndBound, items, allowedWeight)
 	}
 }
