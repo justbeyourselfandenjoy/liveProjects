@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const numItems = 20 // A reasonable value for exhaustive search.
+const numItems = 100 // A reasonable value for exhaustive search.
 
 const minValue = 1
 const maxValue = 10
@@ -293,6 +293,99 @@ func rodsTechniqueSorted(items []Item, allowedWeight int) ([]Item, int, int) {
 		bestValue, currentValue, currentWeight, remainingValue)
 }
 
+// Use dynamic programming to find a solution.
+// Return the best assignment, value of that assignment,
+// and the number of function calls we made.
+func dynamicProgramming(items []Item, allowedWeight int) ([]Item, int, int) {
+	// solution[i][w] represents the best solution for
+	// items 0 through i and weight w.
+	// We don't actually store solution[i][w]; we reconstruct
+	// the solution at the end of the function.
+	//
+	// solutionValue[i][w] holds the value of solution[i][w].
+	//
+	// prevWeight[i][w] holds the index j where we used solution[j][w - 1]
+	// to get to solution[i][w].
+	//
+	// Note that we need to handle solutions where w is between 0 and allowedWeight,
+	// so w must be able to take on allowedWeight + 1 values.
+	//
+	numItems := len(items)
+
+	// Allocate the arrays.
+	solutionValue := make([][]int, numItems)
+	prevWeight := make([][]int, numItems)
+	for i := 0; i < numItems; i++ {
+		solutionValue[i] = make([]int, allowedWeight+1)
+		prevWeight[i] = make([]int, allowedWeight+1)
+	}
+
+	// Initialize the row item 0.
+	for w := 0; w <= allowedWeight; w++ {
+		if items[0].weight <= w {
+			// items[0] fits.
+			solutionValue[0][w] = items[0].value
+			prevWeight[0][w] = -1
+		} else {
+			// items[0] does not fit.
+			solutionValue[0][w] = 0
+			prevWeight[0][w] = w
+		}
+	}
+
+	// Fill in the remaining table rows.
+	for i := 1; i < numItems; i++ {
+		for w := 0; w <= allowedWeight; w++ {
+			// Calculate the value if we do not use the new item i.
+			valueWithoutI := solutionValue[i-1][w]
+
+			// Calculate the value if we do use the new item i.
+			valueWithI := 0
+			if items[i].weight <= w { // Make sure it fits.
+				valueWithI = solutionValue[i-1][w-items[i].weight] + items[i].value
+			}
+
+			// See which is better.
+			if valueWithoutI >= valueWithI {
+				// We're better off omitting item i.
+				solutionValue[i][w] = valueWithoutI
+				prevWeight[i][w] = w
+			} else {
+				// We're better off including item i.
+				solutionValue[i][w] = valueWithI
+				prevWeight[i][w] = w - items[i].weight
+			}
+		}
+	}
+
+	// Set isSelected to false for all items.
+	// (It should already be false, but let's play it safe.)
+	for i := range items {
+		items[i].isSelected = false
+	}
+
+	// Reconstruct the solution.
+	// Get the row and column for the final solution.
+	i := numItems - 1
+	w := allowedWeight
+
+	// Work backwards until we reach an initial solution.
+	for i >= 0 {
+		// Check prevWeight for the current solution.
+		prevW := prevWeight[i][w]
+		if w == prevW {
+			// We skipped item i.
+			// Leave w unchanged.
+		} else {
+			// We added item i.
+			items[i].isSelected = true // Select this item in the solution.
+			w = prevW                  // Move to the previous solution's weight.
+		}
+		i -= 1 // Move to the previous row.
+	}
+	return items, solutionValue[numItems-1][allowedWeight], 1
+}
+
 func main() {
 	//items := makeTestItems()
 	items := makeItems(numItems, minValue, maxValue, minWeight, maxWeight)
@@ -337,4 +430,9 @@ func main() {
 		fmt.Println("*** Rod's technique sorted ***")
 		runAlgorithm(rodsTechniqueSorted, items, allowedWeight)
 	}
+
+	// Dynamic programming
+	fmt.Println("*** Dynamic programming ***")
+	runAlgorithm(dynamicProgramming, items, allowedWeight)
+
 }
