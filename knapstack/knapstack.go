@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"time"
 )
 
@@ -16,6 +17,8 @@ const maxWeight = 10
 var allowedWeight int
 
 type Item struct {
+	id, blockedBy int
+	blockList     []int //Other items that this one blocks.
 	value, weight int
 	isSelected    bool
 }
@@ -29,6 +32,7 @@ func makeItems(numItems, minValue, maxValue, minWeight, maxWeight int) []Item {
 	items := make([]Item, numItems)
 	for i := 0; i < numItems; i++ {
 		items[i] = Item{
+			i, -1, nil,
 			random.Intn(maxValue-minValue+1) + minValue,
 			random.Intn(maxWeight-minWeight+1) + minWeight,
 			false}
@@ -183,6 +187,112 @@ func doBranchAndBound(items []Item, allowedWeight, nextIndex, bestValue, current
 	return solutionWOItem, totalValueWOItem, callsNumberWItem + callsNumberWOItem + 1
 }
 
+// Build the items' block lists.
+func makeBlockLists(items []Item) {
+	for i := range items {
+		items[i].blockList = []int{}
+		for j := range items {
+			if i != j {
+				if items[i].value >= items[j].value && items[i].weight <= items[j].weight {
+					items[i].blockList = append(items[i].blockList, items[j].id)
+				}
+			}
+		}
+	}
+}
+
+// Block items on this item's blocks list.
+func blockItems(source Item, items []Item) {
+	for _, otherId := range source.blockList {
+		if items[otherId].blockedBy < 0 {
+			items[otherId].blockedBy = source.id
+		}
+	}
+}
+
+// Unblock items on this item's blocks list.
+func unblockItems(source Item, items []Item) {
+	for _, otherId := range source.blockList {
+		if items[otherId].blockedBy == source.id {
+			items[otherId].blockedBy = -1
+		}
+	}
+}
+
+func rodsTechnique(items []Item, allowedWeight int) ([]Item, int, int) {
+	bestValue := 0
+	currentValue := 0
+	currentWeight := 0
+	remainingValue := sumValues(items, true)
+	makeBlockLists(items)
+
+	return doRodsTechnique(items, allowedWeight, 0, bestValue, currentValue, currentWeight, remainingValue)
+}
+
+func doRodsTechnique(items []Item, allowedWeight, nextIndex, bestValue, currentValue, currentWeight, remainingValue int) ([]Item, int, int) {
+
+	if nextIndex >= len(items) {
+		return copyItems(items), currentValue, 1
+	}
+
+	if currentValue+remainingValue <= bestValue {
+		return nil, currentValue, 1
+	}
+
+	solutionWItem, totalValueWItem, callsNumberWItem := []Item(nil), 0, 1
+	if items[nextIndex].blockedBy < 0 {
+		if currentWeight+items[nextIndex].weight <= allowedWeight {
+			items[nextIndex].isSelected = true
+			solutionWItem, totalValueWItem, callsNumberWItem = doRodsTechnique(items, allowedWeight, nextIndex+1, bestValue, currentValue+items[nextIndex].value, currentWeight+items[nextIndex].weight, remainingValue-items[nextIndex].value)
+			if totalValueWItem > bestValue {
+				bestValue = totalValueWItem
+			}
+		}
+	}
+
+	solutionWOItem, totalValueWOItem, callsNumberWOItem := []Item(nil), 0, 1
+	if currentValue+remainingValue-items[nextIndex].value > bestValue {
+		blockItems(items[nextIndex], items)
+		items[nextIndex].isSelected = false
+		solutionWOItem, totalValueWOItem, callsNumberWOItem = doRodsTechnique(items, allowedWeight, nextIndex+1, bestValue, currentValue, currentWeight, remainingValue-items[nextIndex].value)
+		unblockItems(items[nextIndex], items)
+	}
+
+	if totalValueWItem >= totalValueWOItem {
+		return solutionWItem, totalValueWItem, callsNumberWItem + callsNumberWOItem + 1
+	}
+
+	return solutionWOItem, totalValueWOItem, callsNumberWItem + callsNumberWOItem + 1
+}
+
+// Use Rod's technique sorted to find a solution.
+// Return the best assignment, value of that assignment,
+// and the number of function calls we made.
+func rodsTechniqueSorted(items []Item, allowedWeight int) ([]Item, int, int) {
+	makeBlockLists(items)
+
+	// Sort so items with longer blocked lists come first.
+	sort.Slice(items, func(i, j int) bool {
+		return len(items[i].blockList) > len(items[j].blockList)
+	})
+
+	// Reset the items' IDs.
+	for i := range items {
+		items[i].id = i
+	}
+
+	// Rebuild the blocked lists with the new indices.
+	makeBlockLists(items)
+
+	bestValue := 0
+	currentValue := 0
+	currentWeight := 0
+	remainingValue := sumValues(items, true)
+
+	return doRodsTechnique(items, allowedWeight, 0,
+		bestValue, currentValue, currentWeight, remainingValue)
+}
+
 func main() {
 	//items := makeTestItems()
 	items := makeItems(numItems, minValue, maxValue, minWeight, maxWeight)
@@ -197,12 +307,34 @@ func main() {
 	fmt.Println()
 
 	// Exhaustive search
-	if numItems > 65 { // Only run exhaustive search if numItems <= 23.
-		fmt.Println("Too many items for exhaustive search")
+	if numItems > 25 { // Only run exhaustive search if numItems <= 25.
+		fmt.Println("Too many items for exhaustive search\n")
 	} else {
 		fmt.Println("*** Exhaustive Search ***")
 		runAlgorithm(exhaustiveSearch, items, allowedWeight)
-		fmt.Println("*** Branch and Bound Search ***")
+	}
+
+	// Branch and bound
+	if numItems > 45 { // Only run branch and bound if numItems <= 45.
+		fmt.Println("Too many items for branch and bound\n")
+	} else {
+		fmt.Println("*** Branch and Bound ***")
 		runAlgorithm(branchAndBound, items, allowedWeight)
+	}
+
+	// Rod's technique
+	if numItems > 85 { // Only use Rod's technique if numItems <= 85.
+		fmt.Println("Too many items for Rod's technique\n")
+	} else {
+		fmt.Println("*** Rod's technique ***")
+		runAlgorithm(rodsTechnique, items, allowedWeight)
+	}
+
+	// Rod's technique sorted
+	if numItems > 350 { // Only use Rod's technique sorted if numItems <= 350.
+		fmt.Println("Too many items for Rod's technique sorted\n")
+	} else {
+		fmt.Println("*** Rod's technique sorted ***")
+		runAlgorithm(rodsTechniqueSorted, items, allowedWeight)
 	}
 }
