@@ -48,5 +48,5 @@ func main() {
 	registerHandlers(mux)
 
 	log.Println("Starting server at " + serverIP + ":" + serverPort + " ... ")
-	log.Fatal(http.ListenAndServe(serverIP+":"+serverPort, mux))
+	log.Panicln(http.ListenAndServe(serverIP+":"+serverPort, mux))
 }

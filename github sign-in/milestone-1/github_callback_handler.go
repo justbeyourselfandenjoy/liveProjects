@@ -38,6 +38,4 @@ func githubCallbackHandler(w http.ResponseWriter, req *http.Request) {
 	setCookie(w, sessionCookie, session.ID, sessionCookieMaxAge)
 	setCookie(w, oauthStateCookie, "", -1)
 	http.Redirect(w, req, "/", http.StatusTemporaryRedirect)
-	return
-
 }
