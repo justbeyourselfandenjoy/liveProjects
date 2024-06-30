@@ -91,3 +91,20 @@ func createSession(ctx context.Context, token string) (*sessionData, error) {
 		ID: sessionId,
 	}, nil
 }
+
+func initiateLoginIfRequired(w http.ResponseWriter, req *http.Request) *sessionData {
+	s, err := getSession(req, sessionCookie)
+	if err == nil {
+		return s
+	}
+
+	stateToken, err := getRandomString()
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return nil
+	}
+	githubLoginUrl := oauthConf.AuthCodeURL(stateToken)
+	setCookie(w, oauthStateCookie, stateToken, 600)
+	http.Redirect(w, req, githubLoginUrl, http.StatusTemporaryRedirect)
+	return nil
+}

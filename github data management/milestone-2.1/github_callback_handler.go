@@ -9,7 +9,7 @@ import (
 )
 
 func githubCallbackHandler(w http.ResponseWriter, req *http.Request) {
-	log.Println("githubCallbackHandler called")
+	log.Println("githubCallbackHandler has been called")
 
 	reqContext := req.Context()
 

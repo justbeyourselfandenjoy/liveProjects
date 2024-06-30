@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"html/template"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -46,10 +48,22 @@ func TestIndexHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedData := "Successfully authorized to access GitHub on your behalf: test-user-1"
 
-	if string(respBytes) != expectedData {
-		t.Fatalf("Expected: %s, Got: %s", expectedData, string(respBytes))
+	var expectedResponse bytes.Buffer
+	indexHtmlTmpl, err := template.New("indexhtml").Parse(indexHtml)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedLoginData := userData{
+		Login: "test-user-1",
+	}
+	err = indexHtmlTmpl.Execute(&expectedResponse, expectedLoginData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(respBytes) != expectedResponse.String() {
+		t.Fatalf("Expected: %s, Got: %s", expectedResponse.String(), string(respBytes))
 	}
 
 }

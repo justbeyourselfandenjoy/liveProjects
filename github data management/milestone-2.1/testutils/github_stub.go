@@ -77,6 +77,81 @@ func (t *githubStub) RoundTrip(r *http.Request) (*http.Response, error) {
 		return &resp, nil
 	}
 
+	if r.URL.String() == "https://api.github.com/users/test-user-1/repos?affiliation=owner&direction=desc&page=1&sort=updated" {
+		responseBody := `[{
+  "id": 1296269,
+  "node_id": "MDEwOlJlcG9zaXRvcnkxMjk2MjY5",
+  "name": "test-repo-1",
+  "full_name": "test-user-1/test-repo-1",
+  "fork": false,
+  "owner": {
+    "login": "test-user-1",
+    "id": 1,
+    "type": "User",
+    "site_admin": false
+  },
+  "private": false
+}]`
+
+		respReader := io.NopCloser(strings.NewReader(responseBody))
+		resp := http.Response{
+			StatusCode:    http.StatusOK,
+			Body:          respReader,
+			ContentLength: int64(len(responseBody)),
+			Header: map[string][]string{
+				"Content-Type": {"application/json"},
+			},
+		}
+		return &resp, nil
+	}
+
+	if r.URL.String() == "https://api.github.com/user/migrations" {
+		responseBody := `
+{
+  "id": 79,
+  "owner": {
+    "login": "test-user-1",
+    "id": 1
+  },
+  "guid": "0b989ba4-242f-11e5-81e1-c7b6966d2516",
+  "state": "pending",
+  "lock_repositories": false,
+  "exclude_attachments": false,
+  "exclude_releases": false,
+  "exclude_owner_projects": false,
+  "repositories": [
+    {
+      "id": 1296269,
+      "node_id": "MDEwOlJlcG9zaXRvcnkxMjk2MjY5",
+      "name": "test-repo-1",
+      "full_name": "test-user-1/test-repo-1",
+      "owner": {
+        "login": "test-user-1",
+        "id": 1,
+        "node_id": "MDQ6VXNlcjE=",
+        "type": "User",
+        "site_admin": false
+      },
+      "private": false,
+      "description": "This your first repo!"
+    }
+  ],
+  "created_at": "2015-07-06T15:33:38+10:00",
+  "updated_at": "2015-07-06T15:33:38+10:00"
+}
+`
+		respReader := io.NopCloser(strings.NewReader(responseBody))
+		resp := http.Response{
+			StatusCode:    http.StatusOK,
+			Body:          respReader,
+			ContentLength: int64(len(responseBody)),
+			Header: map[string][]string{
+				"Content-Type": {"application/json"},
+			},
+		}
+		return &resp, nil
+	}
+
 	return nil, fmt.Errorf("github interceptor: unknown URL: %v", r.URL.String())
 	/*
 		switch r.URL.String() {

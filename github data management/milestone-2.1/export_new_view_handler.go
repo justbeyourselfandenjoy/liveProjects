@@ -7,24 +7,24 @@ import (
 	"net/http"
 )
 
-//go:embed index.html.tmpl
-var indexHtml string
+//go:embed export_new.html.tmpl
+var githubNewExportHtml string
 
-func indexHandler(w http.ResponseWriter, req *http.Request) {
-	log.Println("indexHandler has been called")
+func githubNewExportViewHandler(w http.ResponseWriter, req *http.Request) {
+	log.Println("githubNewExportViewHandler has been called")
 
 	s := initiateLoginIfRequired(w, req)
 	if s == nil {
 		return
 	}
 
-	indexHtmlTmpl, err := template.New("indexhtml").Parse(indexHtml)
+	exportNewHtmlTmpl, err := template.New("github_export_view_html").Parse(githubNewExportHtml)
 	if err != nil {
 		log.Fatal(err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = indexHtmlTmpl.Execute(w, sessionsStore[s.ID])
+	err = exportNewHtmlTmpl.Execute(w, sessionsStore[s.ID])
 	if err != nil {
 		log.Fatal(err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

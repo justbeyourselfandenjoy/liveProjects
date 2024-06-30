@@ -39,6 +39,8 @@ func initOAuthConfig(getEnvValue func(string) string) {
 func registerHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/", indexHandler)
 	mux.HandleFunc("/github/callback", githubCallbackHandler)
+	mux.HandleFunc("/github/export/new", githubNewExportViewHandler)
+	mux.HandleFunc("/api/github/export", githubNewExportApiHandler)
 }
 
 func main() {
