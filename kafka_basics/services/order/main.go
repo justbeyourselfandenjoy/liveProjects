@@ -21,6 +21,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("POST /order/{$}", orderHandler)
 
 	log.Println("Starting server at " + serverIP + ":" + serverPort + " ... ")
 	log.Panicln(http.ListenAndServe(serverIP+":"+serverPort, mux))

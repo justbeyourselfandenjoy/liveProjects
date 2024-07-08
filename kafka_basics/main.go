@@ -14,7 +14,6 @@ func main() {
 		&kafka.ConfigMap{
 			"bootstrap.servers": brokerIP + ":" + brokerPort,
 			"debug":             brokerDebug,
-			"client.id":         clientID,
 			"acks":              brokerAcks},
 		"OrderReceived",
 		&helpers.BaseEvent{

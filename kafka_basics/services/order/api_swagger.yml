@@ -1,0 +1,89 @@
+openapi: '3.0.3'
+info:
+  title: Kafka Basics Pet Project API
+  version: '1.0'
+servers:
+  - url: http://localhost:8080/
+paths:
+  /health:
+    get:
+      summary: 'Healthcheck'
+      description: 'Responces with HTTP 200 OK'
+      responses:
+        '200':
+          description: OK
+  /order/:
+    post:
+      summary: 'Accepting an order'
+      description: 'Saves a proper order after all the validations'
+      requestBody:
+        description: 'Saves the order'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      parameters: []
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Order:
+      type: object
+      properties:
+        ID:
+          type: string
+          format: uuid
+          example: aca4d335-a2af-43cd-910f-585e15e77c5b
+        Products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        Customer:
+          $ref: '#/components/schemas/Customer'
+    Customer:
+      type: object
+      properties:
+        ID:
+          type: string
+          format: uuid
+          example: aca4d335-a2af-43cd-910f-585e15e77c5b
+        FirstName:
+          type: string
+          example: John
+        LastName:
+          type: string
+          example: Doe
+        EmailAddress:
+          type: string
+          example: john.doe@email.com
+        ShippingAddress:
+          $ref: '#/components/schemas/Address'
+    Address:
+      type: object
+      properties:
+        ID:
+          type: string
+          format: uuid
+          example: aca4d335-a2af-43cd-910f-585e15e77c5b
+        Line1:
+          type: string
+        Line2:
+          type: string
+        City:
+          type: string
+        State:
+          type: string
+        PostalCode:
+          type: string
+    Product:
+      type: object
+      properties:
+        ID:
+          type: string
+          format: uuid
+          example: aca4d335-a2af-43cd-910f-585e15e77c5b
+        ProductCode:
+          type: string
+        Quantity:
+          type: integer
