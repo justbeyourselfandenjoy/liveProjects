@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	kafka_helpers "justbeyourselfandenjoy/kafka_basics/helpers"
+	"justbeyourselfandenjoy/service_order/swagger"
 	"log"
 	"net/http"
 )
@@ -11,7 +13,6 @@ import (
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("healthHandler has been called")
 	w.WriteHeader(http.StatusOK)
-	return
 }
 
 func orderHandler(w http.ResponseWriter, r *http.Request) {
@@ -23,6 +24,7 @@ func orderHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
+		log.Println("Error reading request body: ", err.Error())
 		return
 	}
 
@@ -30,18 +32,43 @@ func orderHandler(w http.ResponseWriter, r *http.Request) {
 	if contentType != "application/json" {
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 		fmt.Fprintf(w, "Content-type 'application/json' is allowed, got '%s'", contentType)
+		log.Println("Disallowed content type received: ", contentType)
 		return
 	}
 
-	var orderReceived Order
+	//TODO to implement the real validation
+	if err = validateJsonAgainstSchema(APISchema, bodyBytes); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("order JSON against schema validation failed: " + err.Error()))
+		log.Println("Error validating the request against schema: ", err.Error())
+		return
+	}
 
-	err = json.Unmarshal(bodyBytes, &orderReceived)
-	if err != nil {
+	var orderReceived swagger.Order
+
+	if err = json.Unmarshal(bodyBytes, &orderReceived); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		log.Println("Error converting body to Order object: ", err.Error())
 		return
 	}
 
-	log.Printf("%v\n", orderReceived)
-	return
+	if err = validateOrderPayload(orderReceived); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("order payload validation failed: " + err.Error()))
+		log.Println("Invalid payload received: ", err.Error())
+		return
+	}
+
+	if err = kafka_helpers.PublishEvent(
+		kafkaProducer,
+		OrderReceivedTopicName,
+		kafka_helpers.BuildBaseEvent("OrderReceivedEvent", string(bodyBytes)),
+	); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		log.Println("Error publishing event to Kafka: ", err.Error())
+		return
+	}
+
 }

@@ -30,6 +30,7 @@ components:
   schemas:
     Order:
       type: object
+      required: [ID, Products, Customer]
       properties:
         ID:
           type: string
@@ -43,11 +44,12 @@ components:
           $ref: '#/components/schemas/Customer'
     Customer:
       type: object
+      required: [ID, FirstName, EmailAddress, ShippingAddress]
       properties:
         ID:
           type: string
           format: uuid
-          example: aca4d335-a2af-43cd-910f-585e15e77c5b
+          example: ec721712-b61b-40da-8bb6-3ce8c9a5904c
         FirstName:
           type: string
           example: John
@@ -56,16 +58,18 @@ components:
           example: Doe
         EmailAddress:
           type: string
+          format: email
           example: john.doe@email.com
         ShippingAddress:
           $ref: '#/components/schemas/Address'
     Address:
       type: object
+      required: [ID, Line1, City, State, PostalCode]
       properties:
         ID:
           type: string
           format: uuid
-          example: aca4d335-a2af-43cd-910f-585e15e77c5b
+          example: ca448aff-c2fa-4328-a908-ad35eff8bacc
         Line1:
           type: string
         Line2:
@@ -82,8 +86,12 @@ components:
         ID:
           type: string
           format: uuid
-          example: aca4d335-a2af-43cd-910f-585e15e77c5b
+          example: 1c83f686-322d-4c49-9c29-66703368d0a6
         ProductCode:
           type: string
+          example: LT1234-XY
         Quantity:
           type: integer
+          minimum: 1
+          maximum: 100
+          example: 1

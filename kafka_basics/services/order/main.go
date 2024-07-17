@@ -7,7 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
+
+var APISchema []byte
+var kafkaProducer *kafka.Producer
 
 func main() {
 	startTime := time.Now()
@@ -21,7 +26,25 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
+
+	var err error
+	APISchema, err = os.ReadFile(APISchemaFile)
+	if err != nil {
+		log.Panicln(err)
+	}
 	mux.HandleFunc("POST /order/{$}", orderHandler)
+
+	kafkaProducer, err = kafka.NewProducer(
+		&kafka.ConfigMap{
+			"bootstrap.servers": brokerIP + ":" + brokerPort,
+			"debug":             brokerDebug,
+			"acks":              brokerAcks},
+	)
+
+	if err != nil {
+		log.Panicln(err)
+	}
+	defer kafkaProducer.Close()
 
 	log.Println("Starting server at " + serverIP + ":" + serverPort + " ... ")
 	log.Panicln(http.ListenAndServe(serverIP+":"+serverPort, mux))

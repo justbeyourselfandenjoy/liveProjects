@@ -1,4 +1,4 @@
-package helpers
+package kafka_helpers
 
 import (
 	"encoding/json"
@@ -17,21 +17,27 @@ type BaseEvent struct {
 	EventBody      string
 }
 
-func PublishEvent(kafkaConfig *kafka.ConfigMap, topic string, event *BaseEvent) error {
+func BuildBaseEvent(name string, body string) *BaseEvent {
+	return &BaseEvent{
+		EventID:        uuid.New(),
+		EventTimestamp: time.Now(),
+		EventName:      name,
+		EventBody:      body,
+	}
+}
+
+func PublishEvent(kafkaProducer *kafka.Producer, topic string, event *BaseEvent) error {
 	log.Println("PublishEvent is called")
 
-	kafkaProducer, err := kafka.NewProducer(kafkaConfig)
-
-	if err != nil {
-		return err
-	}
-	defer kafkaProducer.Close()
-
 	var value []byte
+	var err error
+
+	// TODO implement protobuf
 	if value, err = json.Marshal(event); err != nil {
 		return err
 	}
 
+	//TODO make async call
 	err = kafkaProducer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(value)},
