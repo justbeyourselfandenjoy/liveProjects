@@ -25,6 +25,7 @@ func main() {
 		kafkaProducer,
 		"OrderReceived",
 		kafka_helpers.BuildBaseEvent("OrderReceived", "Test message from the app #2"),
+		500,
 	)
 
 	if err != nil {
