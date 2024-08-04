@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	kafka_helpers "justbeyourselfandenjoy/kafka_basics/helpers"
+
+	"justbeyourselfandenjoy/kafka_basics/helpers/kafka_helpers"
 	"justbeyourselfandenjoy/service_order/swagger"
 	"log"
 	"net/http"

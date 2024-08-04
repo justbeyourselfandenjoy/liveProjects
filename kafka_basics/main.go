@@ -1,7 +1,7 @@
 package main
 
 import (
-	kafka_helpers "justbeyourselfandenjoy/kafka_basics/helpers"
+	"justbeyourselfandenjoy/kafka_basics/helpers/kafka_helpers"
 	"log"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
