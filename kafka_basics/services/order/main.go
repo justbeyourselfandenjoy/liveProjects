@@ -23,12 +23,12 @@ func registerHandlers(mux *http.ServeMux) {
 func createKafkaProducerInstance() (*kafka.Producer, error) {
 	return kafka.NewProducer(
 		&kafka.ConfigMap{
-			"bootstrap.servers":         brokerHost + ":" + brokerPort,
-			"debug":                     brokerDebug,
-			"acks":                      brokerAcks,
-			"socket.timeout.ms":         brokerSocketTimeout,
-			"message.timeout.ms":        brokerMessageTimeout,
-			"go.delivery.report.fields": brokerGoDeliveryReportFields,
+			"bootstrap.servers":         _appCfg.Get("broker_connection", "host") + ":" + _appCfg.Get("broker_connection", "port"),
+			"debug":                     _appCfg.Get("broker_connection", "debug"),
+			"acks":                      _appCfg.Get("broker_connection", "acks"),
+			"socket.timeout.ms":         _appCfg.Get("broker_connection", "socketTimeout"),
+			"message.timeout.ms":        _appCfg.Get("broker_connection", "messageTimeout"),
+			"go.delivery.report.fields": _appCfg.Get("broker_connection", "goDeliveryReportFields"),
 		},
 	)
 }
@@ -43,20 +43,25 @@ func main() {
 		os.Exit(0)
 	}()
 
+	appCfg := newAppConfig()
+
 	//read configuration parameters
-	if err := initConfigEnv(); err != nil {
-		log.Println("Can't read config arguments from env: ", err.Error())
+	if err := appCfg.initConfigEnv(appCfg.GetValue("service", "name")); err != nil {
+		log.Println("Error reading config arguments from env: ", err.Error())
 	}
+
+	if err := appCfg.initConfigCL(); err != nil {
+		log.Println("Error reading config arguments from command line: ", err.Error())
+	}
+
 	var err error
-	useZK, zkHotReload := false, false
+	useZK := appCfg.GetToggle("service", "useZk")
 	var zkInstance *zk.Conn
-	if useZK, zkHotReload, err = initConfigCL(); err != nil {
-		log.Println("Can't read command line arguments: ", err.Error())
-	}
+
 	if useZK {
-		zkInstance, err = initConfigZK()
-		if err != nil {
+		if zkInstance, err = appCfg.initConfigZK(); err != nil {
 			log.Println("initConfigZK call returned an error: ", err.Error())
+			useZK = false
 		}
 		defer zkInstance.Close()
 	}
@@ -70,16 +75,16 @@ func main() {
 	}
 	defer kafkaProducer.Close()
 
-	APISchema, err = os.ReadFile(APISchemaFile)
+	APISchema, err = os.ReadFile(appCfg.Get("api", "APISchemaFile"))
 	if err != nil {
 		log.Panicln(err)
 	}
 
 	//start listening to the configuratiuon chhanges
-	if useZK && zkHotReload {
-		hotReloadConfigZK(zkInstance)
+	if useZK && appCfg.GetToggle("service", "zkHotReload") {
+		appCfg.hotReloadConfigZK(zkInstance, []string{"broker_connection", "broker", "api"})
 	}
 
-	log.Println("Starting server at " + serverHost + ":" + serverPort + " ... ")
-	log.Panicln(http.ListenAndServe(serverHost+":"+serverPort, mux))
+	log.Println("Starting server at " + appCfg.Get("service", "host") + ":" + appCfg.Get("service", "port") + " ... ")
+	log.Panicln(http.ListenAndServe(appCfg.Get("service", "host")+":"+appCfg.Get("service", "port"), mux))
 }

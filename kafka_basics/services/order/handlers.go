@@ -62,9 +62,9 @@ func orderHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err = kafka_helpers.PublishEvent(
 		kafkaProducer,
-		OrderReceivedTopicName,
-		kafka_helpers.BuildBaseEvent(OrderReceivedEventName, string(bodyBytes)),
-		brokerProduceTimeout,
+		_appCfg.Get("broker", "topicName"),
+		kafka_helpers.BuildBaseEvent(_appCfg.Get("broker", "eventName"), string(bodyBytes)),
+		int(_appCfg.GetInt("broker_connection", "produceTimeout")),
 	); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))

@@ -4,267 +4,228 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-zookeeper/zk"
 )
 
-type AppConfig struct {
-	groups []ConfigGroup
-}
-
-type ConfigGroup struct {
-	name     string
-	priority uint
-	items    []ConfigItem
-}
-
-type ConfigItem struct {
-	name         string
-	value        string
-	defaultValue string
-	alias        string
-}
-
-var appCfg = AppConfig{
-	[]ConfigGroup{
-		{
-			name:     "service",
-			priority: 0,
-			items: []ConfigItem{
-				{name: "name", value: "Order", defaultValue: "Order", alias: "service"},
-				{name: "host", value: "localhost", defaultValue: "localhost", alias: "host"},
-				{name: "port", value: "8080", defaultValue: "8080", alias: "port"},
-			},
-		},
-		{
-			name:     "broker_connection",
+var _appCfg = AppConfig{
+	groups: map[string]ConfigGroup{
+		"service": {
 			priority: 1,
-			items: []ConfigItem{
-				{name: "host", value: "localhost", defaultValue: "localhost", alias: "broker_host"},
-				{name: "port", value: "9092", defaultValue: "9092", alias: "broker_port"},
-				{name: "debug", value: "generic,broker,topic,msg", defaultValue: "generic", alias: "broker_debug"},
-				{name: "acks", value: "all", defaultValue: "all", alias: "broker_acks"},
-				{name: "produceTimeout", value: "500", defaultValue: "500", alias: "broker_produce_timeout"},
-				{name: "socketTimeout", value: "10", defaultValue: "10", alias: "broker_socket_timeout"},
-				{name: "messageTimeout", value: "10", defaultValue: "10", alias: "broker_message_timeout"},
-				{name: "goDeliveryReportFields", value: "key,value,headers", defaultValue: "all", alias: "broker_go_delivery_report_fields"},
+			items: map[string]ConfigItem{
+				"name":        {value: "Order", defaultValue: "Order", alias: "service_name", description: "service name, internal, used for env variables prefix"},
+				"host":        {value: "localhost", defaultValue: "localhost", alias: "service_host", description: "host to bind the server"},
+				"port":        {value: "8080", defaultValue: "8080", alias: "service_port", description: "port to bind the server"},
+				"useZk":       {value: "true", defaultValue: "true", alias: "use_zk", description: "toggle for using zookeeper"},
+				"zkHotReload": {value: "true", defaultValue: "true", alias: "zk_hot_reload", description: "toggle to enable hot reload for parameters from zookeeper"},
 			},
 		},
-		{
-			name:     "broker",
+		"broker_connection": {
 			priority: 2,
-			items: []ConfigItem{
-				{name: "topicName", value: "OrderReceived", defaultValue: "OrderReceived", alias: "broker_topic_name"},
-				{name: "eventName", value: "OrderReceivedEvent", defaultValue: "OrderReceivedEvent", alias: "broker_event_name"},
+			items: map[string]ConfigItem{
+				"host":                   {value: "localhost", defaultValue: "localhost", alias: "broker_host", description: "broker host to connect"},
+				"port":                   {value: "9092", defaultValue: "9092", alias: "broker_port", description: "broker port to connect"},
+				"debug":                  {value: "generic,broker,topic,msg", defaultValue: "generic", alias: "broker_debug", description: "broker client debug level"},
+				"acks":                   {value: "all", defaultValue: "all", alias: "broker_acks", description: "broker client acks parameter"},
+				"produceTimeout":         {value: "500", defaultValue: "500", alias: "broker_produce_timeout", description: "timeout for producing messages to the broker client"},
+				"socketTimeout":          {value: "10", defaultValue: "10", alias: "broker_socket_timeout", description: "socket.timeout.ms for broker producer"},
+				"messageTimeout":         {value: "10", defaultValue: "10", alias: "broker_message_timeout", description: "message.timeout.ms for broker producer"},
+				"goDeliveryReportFields": {value: "key,value,headers", defaultValue: "all", alias: "broker_go_delivery_report_fields", description: "go.delivery.report.fields for broker producer"},
 			},
 		},
-		{
-			name:     "zk",
+		"broker": {
 			priority: 3,
-			items: []ConfigItem{
-				{name: "host", value: "127.0.0.1", defaultValue: "127.0.0.1", alias: "zk_host"},
-				{name: "sessionTimeout", value: "1", defaultValue: "1", alias: "zk_session_timeout"},
-				{name: "rootNode", value: "/kafka_basics/Order", defaultValue: "/kafka_basics/Order", alias: "zk_root_node"},
+			items: map[string]ConfigItem{
+				"topicName": {value: "OrderReceived", defaultValue: "OrderReceived", alias: "broker_topic_name", description: "broker's topic name used by the service"},
+				"eventName": {value: "OrderReceivedEvent", defaultValue: "OrderReceivedEvent", alias: "broker_event_name", description: "broker's event name used by the service"},
 			},
 		},
-		{
-			name:     "api",
+		"zk": {
 			priority: 4,
-			items: []ConfigItem{
-				{name: "APISchemaFile", value: "api/swagger.yml", defaultValue: "api/swagger.yml", alias: "api_schema_file"},
+			items: map[string]ConfigItem{
+				"host":           {value: "127.0.0.1", defaultValue: "127.0.0.1", alias: "zk_host", description: "zookeepeer host to connect"},
+				"sessionTimeout": {value: "1", defaultValue: "1", alias: "zk_session_timeout", description: "zookeepeer session timeout"},
+				"rootNode":       {value: "/kafka_basics/Order", defaultValue: "/kafka_basics/Order", alias: "zk_root_node", description: "zookeepeer root node for the service to read"},
+			},
+		},
+		"api": {
+			priority: 4,
+			items: map[string]ConfigItem{
+				"APISchemaFile": {value: "api/swagger.yml", defaultValue: "api/swagger.yml", alias: "api_schema_file", description: "schema file name to validate requests against"},
 			},
 		},
 	},
 }
 
-const (
-	serviceName       = "Order"
-	defaultServerHost = "localhost"
-	defaultServerPort = "8080"
+var _CLFlags map[string]struct{}
 
-	defaultBrokerHost                   = "localhost"
-	defaultBrokerPort                   = "9092"
-	defaultBrokerDebug                  = "generic" //"generic,broker,topic,msg"
-	defaultBrokerAcks                   = "all"
-	defaultBrokerProduceTimeout         = 500 //ms
-	defaultBrokerSocketTimeout          = 10
-	defaultBrokerMessageTimeout         = 10
-	defaultBrokerGoDeliveryReportFields = "all" //"key,value,headers"
+type AppConfig struct {
+	sync.Mutex
+	groups map[string]ConfigGroup
+}
 
-	defaultOrderReceivedTopicName = "OrderReceived"
-	defaultOrderReceivedEventName = "OrderReceivedEvent"
+type ConfigGroup struct {
+	priority uint
+	items    map[string]ConfigItem
+}
 
-	defaultAPISchemaFile = "api/swagger.yml"
+type ConfigItem struct {
+	value        string
+	defaultValue string
+	alias        string
+	description  string
+}
 
-	defaultZKHost           = "127.0.0.1"
-	defaultZKSessionTimeout = time.Second
-	defaultZKRootNode       = "/kafka_basics/" + serviceName
+func newAppConfig() *AppConfig {
+	return &_appCfg
+}
 
-// defaultZKArguments      = "kafka_topic, kafka_event, api_schema_file"
-)
+func (c *AppConfig) Get(group string, name string) string {
+	return c.GetValue(group, name)
+}
 
-var (
-	serverHost = defaultServerHost
-	serverPort = defaultServerPort
+func (c *AppConfig) GetValue(group string, name string) string {
+	return c.groups[group].items[name].value
+}
+func (c *AppConfig) GetAlias(group string, name string) string {
+	return c.groups[group].items[name].alias
+}
 
-	brokerHost                   = defaultBrokerHost
-	brokerPort                   = defaultBrokerPort
-	brokerDebug                  = defaultBrokerDebug
-	brokerAcks                   = defaultBrokerAcks
-	brokerProduceTimeout         = defaultBrokerProduceTimeout
-	brokerSocketTimeout          = defaultBrokerSocketTimeout
-	brokerMessageTimeout         = defaultBrokerMessageTimeout
-	brokerGoDeliveryReportFields = defaultBrokerGoDeliveryReportFields
+func (c *AppConfig) GetDefault(group string, name string) string {
+	return c.groups[group].items[name].defaultValue
+}
 
-	OrderReceivedTopicName = defaultOrderReceivedTopicName
-	OrderReceivedEventName = defaultOrderReceivedEventName
+func (c *AppConfig) GetToggle(group string, name string) bool {
+	return c.groups[group].items[name].value == "true"
+}
 
-	APISchemaFile = defaultAPISchemaFile
+func (c *AppConfig) GetInt(group string, name string) uint64 {
+	if s, err := strconv.ParseUint(c.groups[group].items[name].value, 10, 32); err == nil {
+		return s
+	}
+	return 0
+}
 
-	zkHost           = defaultZKHost
-	zkSessionTimeout = defaultZKSessionTimeout
-	zkRootNode       = defaultZKRootNode
-
-// zkArguments      = defaultZKArguments
-)
+func (c *AppConfig) Set(group string, name string, value string) error {
+	c.Lock()
+	item := c.groups[group].items[name]
+	item.value = value
+	c.groups[group].items[name] = item
+	defer c.Unlock()
+	return nil
+}
 
 // read env variables
-func initConfigEnv() error {
-	if len(os.Getenv("host")) != 0 {
-		serverHost = os.Getenv("host")
-	}
-	if len(os.Getenv("port")) != 0 {
-		serverPort = os.Getenv("port")
+func (c *AppConfig) initConfigEnv(prefix string) error {
+	for groupName, configGroup := range c.groups {
+		for configName, configItem := range configGroup.items {
+			envVar := os.Getenv(prefix + "_" + configItem.alias)
+			if len(envVar) != 0 {
+				log.Printf("setting [%v.%s] to value [%s] from env valiable [%s]\n", groupName, configName, envVar, prefix+"_"+configItem.alias)
+				c.Set(groupName, configName, envVar)
+			}
+
+		}
 	}
 	return nil
 }
 
-func initConfigCL() (bool, bool, error) {
-	//override defaults and env variables with application arguments from the CLI
-	var serverHostCLArg, serverPortCLArg string
-	var useZK, zkHotReload bool
-	flag.StringVar(&serverHostCLArg, "host", defaultServerHost, "a server hostname to run the service") //overrides even if it is set by Getenv
-	flag.StringVar(&serverPortCLArg, "port", defaultServerPort, "a server port to run the service")
-	flag.BoolVar(&useZK, "zk", true, "enable using zookeeper for reading configuration parameters")
-	flag.BoolVar(&zkHotReload, "zk_hot_reload", true, "enable re-reading configuration parameters from zk w/o restarting the app")
+func (c *AppConfig) initConfigCL() error {
+	for _, configGroup := range c.groups {
+		for _, configItem := range configGroup.items {
+			var CLValue string
+			flag.StringVar(&CLValue, configItem.alias, configItem.defaultValue, configItem.description)
+		}
+	}
 	flag.Parse()
-	// to prevent overriding with the default CLI arg even if it is not set
-	flag.Visit(checkCLArgIsSpecified)
-	return useZK, zkHotReload, nil
+	_CLFlags = make(map[string]struct{})
+	flag.Visit(setCLArgs)
+
+	//checking what flags are set from the CL and set only those
+	for groupName, configGroup := range c.groups {
+		for configName, configItem := range configGroup.items {
+			flagValue := flag.Lookup(configItem.alias).Value.String()
+			//override only actually set CL parameters
+			if _, ok := _CLFlags[configItem.alias]; ok {
+				log.Printf("setting [%v.%s] to new value [%s] from CL argument\n", groupName, configName, flagValue)
+				c.Set(groupName, configName, flagValue)
+			}
+		}
+	}
+	return nil
 }
 
-func checkCLArgIsSpecified(flag *flag.Flag) {
-	if flag.Name == "host" {
-		serverHost = flag.Value.String()
-	}
-	if flag.Name == "port" {
-		serverPort = flag.Value.String()
-	}
+func setCLArgs(flag *flag.Flag) {
+	_CLFlags[flag.Name] = struct{}{}
 }
 
-func initConfigZK() (*zk.Conn, error) {
+func (c *AppConfig) initConfigZK() (*zk.Conn, error) {
 	//read from zk
-	zkInstance, _, err := zk.Connect([]string{zkHost}, zkSessionTimeout)
+	zkInstance, _, err := zk.Connect([]string{c.Get("zk", "host")}, time.Second)
 	if err != nil {
-		log.Panicln(err)
+		return nil, err
 	}
+
 	//checking if the root node exists on zk
+	zkRootNode := c.Get("zk", "rootNode")
 	if ok, _, err := zkInstance.Exists(zkRootNode); !ok {
-		log.Printf("Can't read the root node [%s], skipping zk\n", zkRootNode)
+		log.Printf("initConfigZK: can't read the root node [%s]: %s. Skipping zk...\n", zkRootNode, err.Error())
 		return zkInstance, err
 	}
 
-	//reading the parameters one-by-one
-	zkArg := zkRootNode + "/broker_host"
-	if argValue, err := zkGetArg(zkInstance, zkArg); err == nil {
-		log.Printf("Read from %s: %s\n", zkArg, string(argValue))
-		brokerHost = argValue
-	} else {
-		log.Printf("Can't read [%v]: %s. Skipping ...\n", zkArg, err.Error())
-	}
-	//TODO: cycle
-	zkArg = zkRootNode + "/broker_port"
-	if argValue, err := zkGetArg(zkInstance, zkArg); err == nil {
-		log.Printf("Read from %s: %s\n", zkArg, string(argValue))
-		brokerPort = argValue
-	} else {
-		log.Printf("Can't read [%v]: %s. Skipping ...\n", zkArg, err.Error())
-	}
-
-	/*
-		go func() {
-			//		ev := <-zkEventChannel
-			//		log.Printf("Get zkEventChannel #3: %+v\n", ev)
-
-			for event := range zkEventChannel {
-				log.Printf("£vent range: %v\n", event)
+	//reading the parameters
+	for groupName, configGroup := range c.groups {
+		for configName, configItem := range configGroup.items {
+			zkArg := zkRootNode + "/" + configItem.alias
+			if argValue, err := c.zkGetArg(zkInstance, zkArg); err == nil {
+				log.Printf("initConfigZK: read from %s: %s\n", zkArg, string(argValue))
+				c.Set(groupName, configName, argValue)
+			} else {
+				log.Printf("initConfigZK: can't read [%v]: %s. Skipping ...\n", zkArg, err.Error())
 			}
-			log.Println("Exiting!!!!!!!")
-		}()
-	*/
-	//	<-zkEventChannel
-	//ev := <-zkEventChannel
-	//log.Printf("Get zkEventChannel #1: %+v\n", ev)
-	/*
-			go func() {
-		select {
-		case ev := <-zkEventChannel:
-			log.Printf("Got zkEventChannel event: %+v\n", ev)
-			if ev.Err != nil {
-				log.Printf("GetW watcher error: %+v\n", ev.Err)
-			}
-			if ev.State != 100 && ev.State != 101 {
-				log.Printf("Watcher is in [%s] state. [StateConnected] or [StateHasSession] is expected\n", ev.State)
-				return
-			}
-		case <-time.After(2 * time.Second):
-			log.Println("zx GetW watcher timed out")
-		default:
-			log.Println("Got default zk event")
 		}
-
-			}()
-	*/
+	}
 
 	return zkInstance, nil
 }
 
-func hotReloadConfigZK(zkInstance *zk.Conn) {
+func (c *AppConfig) hotReloadConfigZK(zkInstance *zk.Conn, configGroups []string) {
 
 	kafkaReloadSig := make(chan bool)
 
-	//TODO: cycle
-	go func() {
-		zkArg := zkRootNode + "/broker_host"
-		for {
-			if argValue, err := zkGetArgW(zkInstance, zkArg); err == nil {
-				log.Printf("Got zk node change event: %s\n", argValue)
-				brokerHost = argValue
-				kafkaReloadSig <- true
-			} else {
-				log.Printf("Can't read [%v]: %s. Skipping...\n", zkArg, err.Error())
-			}
-		}
-	}()
+	//checking if the root node exists on zk
+	zkRootNode := c.Get("zk", "rootNode")
+	if ok, _, _ := zkInstance.Exists(zkRootNode); !ok {
+		log.Printf("hotReloadConfigZK: can't read the root node [%s], skipping hotReloadConfigZK...\n", zkRootNode)
+		return
+	}
 
-	go func() {
-		zkArg := zkRootNode + "/broker_port"
-		for {
-			if argValue, err := zkGetArgW(zkInstance, zkArg); err == nil {
-				log.Printf("Got zk node change event: %s\n", argValue)
-				brokerPort = argValue
-				kafkaReloadSig <- true
-			} else {
-				log.Printf("Can't read [%v]: %s. Skipping...\n", zkArg, err.Error())
-			}
+	for _, configGroup := range configGroups {
+		for configName, configItem := range c.groups[configGroup].items {
+			go func() {
+				zkArg := zkRootNode + "/" + configItem.alias
+				for {
+					if argValue, err := c.zkGetArgW(zkInstance, zkArg); err == nil {
+						log.Printf("hotReloadConfigZK: got zk node change event: %s\n", argValue)
+						c.Set(configGroup, configName, argValue)
+						kafkaReloadSig <- true
+					} else {
+						log.Printf("hotReloadConfigZK: can't read [%v]: %s. Skipping...\n", zkArg, err.Error())
+						return
+					}
+				}
+			}()
 		}
-	}()
+	}
 
 	go func() {
 		var err error
 		for {
 			if <-kafkaReloadSig {
+				//TODO wait untile the previous relod is completed
 				kafkaProducer.Close()
 				if kafkaProducer, err = createKafkaProducerInstance(); err != nil {
 					log.Panicln(err)
@@ -274,7 +235,7 @@ func hotReloadConfigZK(zkInstance *zk.Conn) {
 	}()
 }
 
-func zkGetArg(zkInstance *zk.Conn, zkArg string) (string, error) {
+func (c *AppConfig) zkGetArg(zkInstance *zk.Conn, zkArg string) (string, error) {
 	argValue, _, err := zkInstance.Get(zkArg)
 	if err != nil {
 		return "", err
@@ -282,7 +243,7 @@ func zkGetArg(zkInstance *zk.Conn, zkArg string) (string, error) {
 	return string(argValue), nil
 }
 
-func zkGetArgW(zkInstance *zk.Conn, zkArg string) (string, error) {
+func (c *AppConfig) zkGetArgW(zkInstance *zk.Conn, zkArg string) (string, error) {
 
 	var argValue []byte
 
@@ -299,7 +260,7 @@ func zkGetArgW(zkInstance *zk.Conn, zkArg string) (string, error) {
 			log.Println("EventNodeDeleted event")
 		case 3: //EventNodeDataChanged
 			log.Println("EventNodeDataChanged event")
-			if argValueTmp, err := zkGetArg(zkInstance, zkArg); err == nil {
+			if argValueTmp, err := c.zkGetArg(zkInstance, zkArg); err == nil {
 				log.Printf("Read from %s: %s\n", zkArg, string(argValueTmp))
 				argValue = []byte(argValueTmp)
 			} else {
