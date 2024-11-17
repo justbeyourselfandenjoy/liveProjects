@@ -2,6 +2,7 @@ package config_helpers
 
 import (
 	"flag"
+	"fmt"
 	"justbeyourselfandenjoy/kafka_basics/helpers/kafka_helpers"
 	"log"
 	"os"
@@ -71,6 +72,16 @@ func (c *AppConfig) Set(group string, name string, value string) error {
 	return nil
 }
 
+func (c *AppConfig) GetConfigValues() string {
+	var _cfg string
+	for groupName, configGroup := range c.Groups {
+		for configName, configItem := range configGroup.Items {
+			_cfg += fmt.Sprintf("%v.%s=%v\n", groupName, configName, configItem.Value)
+		}
+	}
+	return _cfg
+}
+
 // read env variables
 func (c *AppConfig) InitConfigEnv(prefix string) error {
 	for groupName, configGroup := range c.Groups {
@@ -100,9 +111,9 @@ func (c *AppConfig) InitConfigCL() error {
 	//checking what flags are set from the CL and set only those
 	for groupName, configGroup := range c.Groups {
 		for configName, configItem := range configGroup.Items {
-			flagValue := flag.Lookup(configItem.Alias).Value.String()
 			//override only actually set CL parameters
 			if _, ok := _CLFlags[configItem.Alias]; ok {
+				flagValue := flag.Lookup(configItem.Alias).Value.String()
 				log.Printf("setting [%v.%s] to new value [%s] from CL argument\n", groupName, configName, flagValue)
 				c.Set(groupName, configName, flagValue)
 			}
@@ -124,8 +135,9 @@ func (c *AppConfig) InitConfigZK() (*zk.Conn, error) {
 
 	//checking if the root node exists on zk
 	zkRootNode := c.Get("zk", "rootNode")
+
 	if ok, _, err := zkInstance.Exists(zkRootNode); !ok {
-		log.Printf("initConfigZK: can't read the root node [%s]: %s. Skipping zk...\n", zkRootNode, err.Error())
+		log.Printf("initConfigZK: can't read the root node [%s]. Skipping zk...\n", zkRootNode)
 		return zkInstance, err
 	}
 
@@ -194,6 +206,7 @@ func (c *AppConfig) HotReloadConfigZK(zkInstance *zk.Conn, configGroups []string
 				if kafkaProducer, err = kafka_helpers.CreateKafkaProducerInstance(&kafkaConfigMap); err != nil {
 					log.Panicln(err)
 				}
+				log.Print("Updated configuration snapshot \n", c.GetConfigValues())
 			}
 		}
 	}()

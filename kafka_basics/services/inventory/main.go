@@ -20,7 +20,6 @@ var kafkaProducer *kafka.Producer
 
 func registerHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", healthHandler)
-	mux.HandleFunc("POST /order/{$}", orderHandler)
 }
 
 func main() {
@@ -73,10 +72,13 @@ func main() {
 	}
 	defer kafkaProducer.Close()
 
-	APISchema, err = os.ReadFile(appCfg.Get("api", "APISchemaFile"))
-	if err != nil {
-		log.Panicln(err)
-	}
+	/*
+		//TODO implement a single source of AAPI schema for all the services
+			APISchema, err = os.ReadFile(appCfg.Get("api", "APISchemaFile"))
+			if err != nil {
+				log.Panicln(err)
+			}
+	*/
 
 	//start listening to the configuratiuon chhanges
 	if useZK && appCfg.GetToggle("service", "zkHotReload") {
