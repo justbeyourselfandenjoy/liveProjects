@@ -12,6 +12,7 @@ var _appCfg = config_helpers.AppConfig{
 				"port":        {Value: "8081", DefaultValue: "8081", Alias: "service_port", Description: "port to bind the server"},
 				"useZk":       {Value: "true", DefaultValue: "true", Alias: "use_zk", Description: "toggle for using zookeeper"},
 				"zkHotReload": {Value: "true", DefaultValue: "true", Alias: "zk_hot_reload", Description: "toggle to enable hot reload for parameters from zookeeper"},
+				"useDLQ":      {Value: "true", DefaultValue: "true", Alias: "use_dlq", Description: "toggle for using DLQ"},
 			},
 		},
 		"broker_connection": {
@@ -36,6 +37,8 @@ var _appCfg = config_helpers.AppConfig{
 				"groupId":          {Value: "inventory-consumer-group-1", DefaultValue: "inventory-consumer-group-1", Alias: "consumer_group_id", Description: "group name for Kafka consumer"},
 				"topicNameProduce": {Value: "OrderConfirmed", DefaultValue: "OrderConfirmed", Alias: "broker_topic_name_produce", Description: "broker's topic name used by the service to produce events"},
 				"eventNameProduce": {Value: "OrderConfirmedEvent", DefaultValue: "OrderConfirmedEvent", Alias: "broker_event_name_produce", Description: "broker's event name used by the service to produce"},
+				"topicNameDLQ":     {Value: "DeadLetterQueue", DefaultValue: "DeadLetterQueue", Alias: "broker_topic_name_dlq", Description: "DLQ's topic name used by the service to produce DLQ messages"},
+				"eventNameDLQ":     {Value: "DeadLetterQueueEvent", DefaultValue: "DeadLetterQueueEvent", Alias: "broker_event_name_dlq", Description: "DLQ's event name used by the service to produce"},
 			},
 		},
 		"zk": {
