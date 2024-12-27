@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/go-zookeeper/zk"
 
 	"justbeyourselfandenjoy/kafka_basics/helpers/config_helpers"
@@ -16,7 +16,9 @@ import (
 )
 
 var APISchema []byte
-var kafkaProducer *kafka.Producer
+var kafkaConsumer kafka_helpers.KafkaConsumer
+var kafkaProducer kafka_helpers.KafkaProducer
+var kafkaConfigMap *kafka.ConfigMap
 
 func registerHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", healthHandler)
@@ -58,34 +60,58 @@ func main() {
 	mux := http.NewServeMux()
 	registerHandlers(mux)
 
-	//create kafka producer instance (a global var), will be used for hot reload with new parameters
-	var kafkaConfigMap = kafka.ConfigMap{
+	kafkaConfigMap = &kafka.ConfigMap{
 		"bootstrap.servers":         appCfg.Get("broker_connection", "host") + ":" + appCfg.Get("broker_connection", "port"),
 		"debug":                     appCfg.Get("broker_connection", "debug"),
 		"acks":                      appCfg.Get("broker_connection", "acks"),
 		"socket.timeout.ms":         appCfg.Get("broker_connection", "socketTimeout"),
 		"message.timeout.ms":        appCfg.Get("broker_connection", "messageTimeout"),
+		"group.id":                  appCfg.Get("broker", "groupId"),
 		"go.delivery.report.fields": appCfg.Get("broker_connection", "goDeliveryReportFields"),
 	}
-	if kafkaProducer, err = kafka_helpers.CreateKafkaProducerInstance(&kafkaConfigMap); err != nil {
+
+	//create kafka consumer instance
+	kafkaConsumer.SetConfig(kafkaConsumer.FilterConfig(kafkaConfigMap), appCfg.Get("broker", "topicNameConsume"))
+
+	if err = kafkaConsumer.Create(); err != nil {
+		log.Panicln(err)
+	}
+	defer kafkaConsumer.Close()
+
+	//create kafka producer instance
+	kafkaProducer.SetConfig(kafkaConfigMap, appCfg.Get("broker", "topicNameProduce"))
+	if err = kafkaProducer.Create(); err != nil {
 		log.Panicln(err)
 	}
 	defer kafkaProducer.Close()
 
 	/*
-		//TODO implement a single source of AAPI schema for all the services
+		//TODO implement a single source of API schema for all the services
 			APISchema, err = os.ReadFile(appCfg.Get("api", "APISchemaFile"))
 			if err != nil {
 				log.Panicln(err)
 			}
 	*/
 
-	//start listening to the configuratiuon chhanges
-	if useZK && appCfg.GetToggle("service", "zkHotReload") {
-		appCfg.HotReloadConfigZK(zkInstance, []string{"broker_connection", "broker", "api"}, kafkaProducer)
-	}
-
 	log.Println("Starting server at " + appCfg.Get("service", "host") + ":" + appCfg.Get("service", "port") + " ... ")
 	log.Print("Initial configuration snapshot \n", appCfg.GetConfigValues())
+
+	//subscribing to kafka events
+	go kafkaConsumer.Run()
+
+	//processing kafka events
+	go func() {
+		for {
+			kafkaMessageHandler(<-kafkaConsumer.GetMsgChan())
+		}
+	}()
+
+	//start listening to the configuratiuon changes and reloading if any meaningful are watched
+	if useZK && appCfg.GetToggle("service", "zkHotReload") {
+		appCfg.HotReloadConfigZK(zkInstance, []string{"broker_connection", "broker", "api"}, &kafkaConsumer, kafkaMessageHandler)
+		appCfg.HotReloadConfigZK(zkInstance, []string{"broker_connection", "broker", "api"}, &kafkaProducer, nil)
+
+	}
+
 	log.Panicln(http.ListenAndServe(appCfg.Get("service", "host")+":"+appCfg.Get("service", "port"), mux))
 }

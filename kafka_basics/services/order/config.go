@@ -17,10 +17,11 @@ var _appCfg = config_helpers.AppConfig{
 		"broker_connection": {
 			Priority: 2,
 			Items: map[string]config_helpers.ConfigItem{
-				"host":                   {Value: "localhost", DefaultValue: "localhost", Alias: "broker_host", Description: "broker host to connect"},
-				"port":                   {Value: "9092", DefaultValue: "9092", Alias: "broker_port", Description: "broker port to connect"},
-				"debug":                  {Value: "generic,broker,topic,msg", DefaultValue: "generic", Alias: "broker_debug", Description: "broker client debug level"},
-				"acks":                   {Value: "all", DefaultValue: "all", Alias: "broker_acks", Description: "broker client acks parameter"},
+				"host":  {Value: "localhost", DefaultValue: "localhost", Alias: "broker_host", Description: "broker host to connect"},
+				"port":  {Value: "9092", DefaultValue: "9092", Alias: "broker_port", Description: "broker port to connect"},
+				"debug": {Value: "generic,broker,topic,msg", DefaultValue: "generic", Alias: "broker_debug", Description: "broker client debug level"},
+				"acks":  {Value: "all", DefaultValue: "all", Alias: "broker_acks", Description: "broker client acks parameter"},
+				//TODO Configuration property `fetch.wait.max.ms` (500) should be set lower than `socket.timeout.ms` (10) by at least 1000ms to avoid blocking and timing out sub-sequent requests
 				"produceTimeout":         {Value: "500", DefaultValue: "500", Alias: "broker_produce_timeout", Description: "timeout for producing messages to the broker client"},
 				"socketTimeout":          {Value: "10", DefaultValue: "10", Alias: "broker_socket_timeout", Description: "socket.timeout.ms for broker producer"},
 				"messageTimeout":         {Value: "10", DefaultValue: "10", Alias: "broker_message_timeout", Description: "message.timeout.ms for broker producer"},
@@ -30,8 +31,8 @@ var _appCfg = config_helpers.AppConfig{
 		"broker": {
 			Priority: 3,
 			Items: map[string]config_helpers.ConfigItem{
-				"topicName": {Value: "OrderReceived", DefaultValue: "OrderReceived", Alias: "broker_topic_name", Description: "broker's topic name used by the service"},
-				"eventName": {Value: "OrderReceivedEvent", DefaultValue: "OrderReceivedEvent", Alias: "broker_event_name", Description: "broker's event name used by the service"},
+				"topicNameProduce": {Value: "OrderReceived", DefaultValue: "OrderReceived", Alias: "broker_topic_name", Description: "broker's topic name used by the service"},
+				"eventNameProduce": {Value: "OrderReceivedEvent", DefaultValue: "OrderReceivedEvent", Alias: "broker_event_name", Description: "broker's event name used by the service"},
 			},
 		},
 		"zk": {

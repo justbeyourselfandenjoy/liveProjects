@@ -17,11 +17,12 @@ var _appCfg = config_helpers.AppConfig{
 		"broker_connection": {
 			Priority: 2,
 			Items: map[string]config_helpers.ConfigItem{
-				"host":                   {Value: "localhost", DefaultValue: "localhost", Alias: "broker_host", Description: "broker host to connect"},
-				"port":                   {Value: "9092", DefaultValue: "9092", Alias: "broker_port", Description: "broker port to connect"},
-				"debug":                  {Value: "generic,broker,topic,msg", DefaultValue: "generic", Alias: "broker_debug", Description: "broker client debug level"},
-				"acks":                   {Value: "all", DefaultValue: "all", Alias: "broker_acks", Description: "broker client acks parameter"},
-				"produceTimeout":         {Value: "500", DefaultValue: "500", Alias: "broker_produce_timeout", Description: "timeout for producing messages to the broker client"},
+				"host":  {Value: "localhost", DefaultValue: "localhost", Alias: "broker_host", Description: "broker host to connect"},
+				"port":  {Value: "9092", DefaultValue: "9092", Alias: "broker_port", Description: "broker port to connect"},
+				"debug": {Value: "generic", DefaultValue: "generic", Alias: "broker_debug", Description: "broker client debug level"},
+				"acks":  {Value: "all", DefaultValue: "all", Alias: "broker_acks", Description: "broker client acks parameter"},
+				//Configuration property `fetch.wait.max.ms` (500) should be set lower than `socket.timeout.ms` (10) by at least 1000ms to avoid blocking and timing out sub-sequent requests
+				"produceTimeout":         {Value: "5", DefaultValue: "5", Alias: "broker_produce_timeout", Description: "timeout for producing messages to the broker client"},
 				"socketTimeout":          {Value: "10", DefaultValue: "10", Alias: "broker_socket_timeout", Description: "socket.timeout.ms for broker producer"},
 				"messageTimeout":         {Value: "10", DefaultValue: "10", Alias: "broker_message_timeout", Description: "message.timeout.ms for broker producer"},
 				"goDeliveryReportFields": {Value: "key,value,headers", DefaultValue: "all", Alias: "broker_go_delivery_report_fields", Description: "go.delivery.report.fields for broker producer"},
@@ -30,8 +31,11 @@ var _appCfg = config_helpers.AppConfig{
 		"broker": {
 			Priority: 3,
 			Items: map[string]config_helpers.ConfigItem{
-				"topicName": {Value: "OrderReceived", DefaultValue: "OrderReceived", Alias: "broker_topic_name", Description: "broker's topic name used by the service"},
-				"eventName": {Value: "OrderReceivedEvent", DefaultValue: "OrderReceivedEvent", Alias: "broker_event_name", Description: "broker's event name used by the service"},
+				"topicNameConsume": {Value: "OrderReceived", DefaultValue: "OrderReceived", Alias: "broker_topic_name_consume", Description: "broker's topic name used by the service to consume order events"},
+				"eventNameConsume": {Value: "OrderReceivedEvent", DefaultValue: "OrderReceivedEvent", Alias: "broker_event_name_consume", Description: "broker's event name used by the service to consume"},
+				"groupId":          {Value: "inventory-consumer-group-1", DefaultValue: "inventory-consumer-group-1", Alias: "consumer_group_id", Description: "group name for Kafka consumer"},
+				"topicNameProduce": {Value: "OrderConfirmed", DefaultValue: "OrderConfirmed", Alias: "broker_topic_name_produce", Description: "broker's topic name used by the service to produce events"},
+				"eventNameProduce": {Value: "OrderConfirmedEvent", DefaultValue: "OrderConfirmedEvent", Alias: "broker_event_name_produce", Description: "broker's event name used by the service to produce"},
 			},
 		},
 		"zk": {

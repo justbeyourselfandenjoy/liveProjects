@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/go-zookeeper/zk"
 )
 
 var _CLFlags map[string]struct{}
 
 type AppConfig struct {
-	sync.Mutex
+	sync.RWMutex
 	Groups map[string]ConfigGroup
 }
 
@@ -42,22 +42,38 @@ func (c *AppConfig) Get(group string, name string) string {
 }
 
 func (c *AppConfig) GetValue(group string, name string) string {
-	return c.Groups[group].Items[name].Value
+	//fatal error: concurrent map read and map write
+	c.RLock()
+	retVal := c.Groups[group].Items[name].Value
+	defer c.RUnlock()
+	return retVal
 }
 func (c *AppConfig) GetAlias(group string, name string) string {
-	return c.Groups[group].Items[name].Alias
+	c.RLock()
+	retVal := c.Groups[group].Items[name].Alias
+	defer c.RUnlock()
+	return retVal
 }
 
 func (c *AppConfig) GetDefault(group string, name string) string {
-	return c.Groups[group].Items[name].DefaultValue
+	c.RLock()
+	retVal := c.Groups[group].Items[name].DefaultValue
+	defer c.RUnlock()
+	return retVal
 }
 
 func (c *AppConfig) GetToggle(group string, name string) bool {
-	return c.Groups[group].Items[name].Value == "true"
+	c.RLock()
+	retVal := c.Groups[group].Items[name].Value
+	defer c.RUnlock()
+	return retVal == "true"
 }
 
 func (c *AppConfig) GetInt(group string, name string) uint64 {
-	if s, err := strconv.ParseUint(c.Groups[group].Items[name].Value, 10, 32); err == nil {
+	c.RLock()
+	retVal := c.Groups[group].Items[name].Value
+	defer c.RUnlock()
+	if s, err := strconv.ParseUint(retVal, 10, 32); err == nil {
 		return s
 	}
 	return 0
@@ -74,11 +90,13 @@ func (c *AppConfig) Set(group string, name string, value string) error {
 
 func (c *AppConfig) GetConfigValues() string {
 	var _cfg string
+	c.RLock()
 	for groupName, configGroup := range c.Groups {
 		for configName, configItem := range configGroup.Items {
 			_cfg += fmt.Sprintf("%v.%s=%v\n", groupName, configName, configItem.Value)
 		}
 	}
+	defer c.RUnlock()
 	return _cfg
 }
 
@@ -157,9 +175,9 @@ func (c *AppConfig) InitConfigZK() (*zk.Conn, error) {
 	return zkInstance, nil
 }
 
-func (c *AppConfig) HotReloadConfigZK(zkInstance *zk.Conn, configGroups []string, kafkaProducer *kafka.Producer) {
+func (c *AppConfig) HotReloadConfigZK(zkInstance *zk.Conn, configGroups []string, kafkaInstance kafka_helpers.KafkaInstance, kafkaMessageHandlerFunc func(*kafka.Message)) {
 
-	kafkaReloadSig := make(chan bool)
+	kafkaReloadSigChan := make(chan bool)
 
 	//checking if the root node exists on zk
 	zkRootNode := c.Get("zk", "rootNode")
@@ -177,7 +195,7 @@ func (c *AppConfig) HotReloadConfigZK(zkInstance *zk.Conn, configGroups []string
 						log.Printf("hotReloadConfigZK: got zk node change event: %s\n", argValue)
 						c.Set(configGroup, configName, argValue)
 						if configGroup == "broker_connection" {
-							kafkaReloadSig <- true
+							kafkaReloadSigChan <- true
 						}
 					} else {
 						log.Printf("hotReloadConfigZK: can't read [%v]: %s. Skipping...\n", zkArg, err.Error())
@@ -190,26 +208,24 @@ func (c *AppConfig) HotReloadConfigZK(zkInstance *zk.Conn, configGroups []string
 
 	go func() {
 		for {
-			if <-kafkaReloadSig {
+			if <-kafkaReloadSigChan {
 				//TODO wait until the previous relod is completed
-				kafkaProducer.Close()
-				var err error
-				//TODO rework, too dirty
-				kafkaConfigMap := kafka.ConfigMap{
+				kafkaCongigMap := &kafka.ConfigMap{
 					"bootstrap.servers":         c.Get("broker_connection", "host") + ":" + c.Get("broker_connection", "port"),
 					"debug":                     c.Get("broker_connection", "debug"),
 					"acks":                      c.Get("broker_connection", "acks"),
 					"socket.timeout.ms":         c.Get("broker_connection", "socketTimeout"),
 					"message.timeout.ms":        c.Get("broker_connection", "messageTimeout"),
 					"go.delivery.report.fields": c.Get("broker_connection", "goDeliveryReportFields"),
+					"group.id":                  c.Get("broker", "groupId"),
 				}
-				if kafkaProducer, err = kafka_helpers.CreateKafkaProducerInstance(&kafkaConfigMap); err != nil {
-					log.Panicln(err)
-				}
+				kafkaInstance.Reload(kafkaInstance.FilterConfig(kafkaCongigMap), kafkaMessageHandlerFunc)
 				log.Print("Updated configuration snapshot \n", c.GetConfigValues())
 			}
 		}
 	}()
+
+	// defer close(kafkaReloadSigChan)
 }
 
 func (c *AppConfig) zkGetArg(zkInstance *zk.Conn, zkArg string) (string, error) {
@@ -229,11 +245,13 @@ func (c *AppConfig) zkGetArgW(zkInstance *zk.Conn, zkArg string) (string, error)
 		return "", err
 	}
 	for event := range zkEventChannel {
-		log.Printf("£vent range: %v\n", event)
+		log.Printf("Got %v event from zkEventChannel\n", event)
 		switch event.Type {
 		case 1: //EventNodeCreated
+			//TODO
 			log.Println("EventNodeCreated event")
 		case 2: //EventNodeDeleted
+			//TODO
 			log.Println("EventNodeDeleted event")
 		case 3: //EventNodeDataChanged
 			log.Println("EventNodeDataChanged event")
@@ -246,9 +264,11 @@ func (c *AppConfig) zkGetArgW(zkInstance *zk.Conn, zkArg string) (string, error)
 		case 4: //EventNodeChildrenChanged
 			log.Println("EventNodeChildrenChanged event")
 		case -1: //EventSession
-			log.Println("EventSession event")
+			log.Println("EventSession event: a session event")
 		case -2: //EventNotWatching
-			log.Println("EventNotWatching event")
+			log.Println("EventNotWatching event: a watch has aborted")
+		case -3: //EventWatcherStalled
+			log.Println("EventWatcherStalled event: a watcher has stalled")
 		}
 	}
 	return string(argValue), nil

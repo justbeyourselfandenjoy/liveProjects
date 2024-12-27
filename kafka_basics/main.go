@@ -1,7 +1,6 @@
 package main
 
 import (
-	"justbeyourselfandenjoy/kafka_basics/helpers/kafka_helpers"
 	"log"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -20,14 +19,14 @@ func main() {
 		log.Panicln(err)
 	}
 	defer kafkaProducer.Close()
-
-	err = kafka_helpers.PublishEvent(
-		kafkaProducer,
-		"OrderReceived",
-		kafka_helpers.BuildBaseEvent("OrderReceived", "Test message from the app #2"),
-		500,
-	)
-
+	/*
+		err = kafka_helpers.PublishEvent(
+			kafkaProducer,
+			"OrderReceived",
+			kafka_helpers.BuildBaseEvent("OrderReceived", "Test message from the app #2"),
+			500,
+		)
+	*/
 	if err != nil {
 		log.Panicln(err)
 	}
