@@ -33,6 +33,8 @@ var _appCfg = config_helpers.AppConfig{
 			Items: map[string]config_helpers.ConfigItem{
 				"topicNameProduce": {Value: "OrderReceived", DefaultValue: "OrderReceived", Alias: "broker_topic_name", Description: "broker's topic name used by the service"},
 				"eventNameProduce": {Value: "OrderReceivedEvent", DefaultValue: "OrderReceivedEvent", Alias: "broker_event_name", Description: "broker's event name used by the service"},
+				"topicNameDLQ":     {Value: "DeadLetterQueue", DefaultValue: "DeadLetterQueue", Alias: "broker_topic_name_dlq", Description: "DLQ's topic name used by the service to produce DLQ messages"},
+				"eventNameDLQ":     {Value: "DeadLetterQueueEvent", DefaultValue: "DeadLetterQueueEvent", Alias: "broker_event_name_dlq", Description: "DLQ's event name used by the service to produce"},
 			},
 		},
 		"zk": {

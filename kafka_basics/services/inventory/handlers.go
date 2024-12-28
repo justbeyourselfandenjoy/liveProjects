@@ -31,28 +31,36 @@ func kafkaMessageHandler(msg *kafka.Message) {
 	if err := json.Unmarshal(msg.Value, &baseEvent); err != nil {
 		log.Printf("Error converting message to Order object: %s. Skipping the message ...\n", err.Error())
 		if useDLQ {
-			if err := publisDLQ(string(msg.Value)); err != nil {
+			if err := publishDLQ(string(msg.Value)); err != nil {
 				log.Printf("Error creating DLQ: %s\n", err.Error())
 			}
 		}
 		return
 	}
 
-	//TODO check for the repeated events
-	log.Printf("Checking if the event %s has been processed already ... done\n", baseEvent.EventID)
+	//Checking for the duplicated events
+	log.Printf("Checking if the event %s has been processed already ... ", baseEvent.EventID)
+	if !eventsRegistry.Exists(baseEvent.EventID) {
+		log.Println("New event. Adding to the registry ...")
+		eventsRegistry.Add(baseEvent.EventID)
+	} else {
+		log.Println("Duplicate found. Skipping ...")
+		return
+	}
 
 	var orderReceived swagger.Order
 	if err := json.Unmarshal([]byte(baseEvent.EventBody), &orderReceived); err != nil {
 		log.Printf("Error fetching Order object from Kafka event: %s. Skipping the message ...\n", err.Error())
 		if useDLQ {
-			if err := publisDLQ(string(msg.Value)); err != nil {
+			if err := publishDLQ(string(msg.Value)); err != nil {
 				log.Printf("Error creating DLQ: %s\n", err.Error())
 			}
 		}
 		return
 	}
+	eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSING)
 
-	//TODO check for the repeated events
+	//TODO check for the repeated orders
 	log.Printf("Checking if the order %s has been processed already ... done\n", orderReceived.ID)
 
 	//TODO process order
@@ -65,10 +73,11 @@ func kafkaMessageHandler(msg *kafka.Message) {
 	} else {
 		log.Printf("[WARN] Got an order with empty products. Skipping it...")
 		if useDLQ {
-			if err := publisDLQ(string(msg.Value)); err != nil {
+			if err := publishDLQ(string(msg.Value)); err != nil {
 				log.Printf("Error creating DLQ: %s\n", err.Error())
 			}
 		}
+		eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSING_FAILED)
 		return
 	}
 
@@ -78,16 +87,19 @@ func kafkaMessageHandler(msg *kafka.Message) {
 		int(_appCfg.GetInt("broker_connection", "produceTimeout")),
 	); err != nil {
 		if useDLQ {
-			if err := publisDLQ(string(msg.Value)); err != nil {
+			if err := publishDLQ(string(msg.Value)); err != nil {
 				log.Printf("Error creating DLQ: %s\n", err.Error())
 			}
 		}
 		log.Println("Error publishing event to Kafka: ", err.Error())
+		eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSING_FAILED)
 		return
 	}
+	eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSED)
+	log.Printf("**************** Events registry state: %v\n", eventsRegistry.String())
 }
 
-func publisDLQ(msg string) error {
+func publishDLQ(msg string) error {
 	if err := kafkaProducerDLQ.PublishEvent(
 		&kafka_helpers.BaseEvent{
 			EventID:        uuid.New(),

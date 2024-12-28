@@ -89,7 +89,6 @@ func main() {
 	//start listening to the configuratiuon changes and reloading if any meaningful are watched
 	if useZK && appCfg.GetToggle("service", "zkHotReload") {
 		appCfg.HotReloadConfigZK(zkInstance, []string{"broker_connection", "broker", "api"}, &kafkaProducer, nil)
-
 	}
 
 	log.Panicln(http.ListenAndServe(appCfg.Get("service", "host")+":"+appCfg.Get("service", "port"), mux))

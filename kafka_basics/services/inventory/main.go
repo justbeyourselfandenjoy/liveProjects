@@ -20,6 +20,7 @@ var kafkaConsumer kafka_helpers.KafkaConsumer
 var kafkaProducer kafka_helpers.KafkaProducer
 var kafkaProducerDLQ kafka_helpers.KafkaProducer
 var kafkaConfigMap *kafka.ConfigMap
+var eventsRegistry *kafka_helpers.EventsRegistry
 
 func registerHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", healthHandler)
@@ -61,6 +62,8 @@ func main() {
 	mux := http.NewServeMux()
 	registerHandlers(mux)
 
+	eventsRegistry = kafka_helpers.NewEventsRegistry()
+
 	kafkaConfigMap = &kafka.ConfigMap{
 		"bootstrap.servers":         appCfg.Get("broker_connection", "host") + ":" + appCfg.Get("broker_connection", "port"),
 		"debug":                     appCfg.Get("broker_connection", "debug"),
@@ -87,11 +90,14 @@ func main() {
 	defer kafkaProducer.Close()
 
 	//create kafka DLQ producer instance
-	kafkaProducerDLQ.SetConfig(kafkaConfigMap, appCfg.Get("broker", "topicNameDLQ"))
-	if err = kafkaProducerDLQ.Create(); err != nil {
-		log.Panicln(err)
+	useDLQ := appCfg.GetToggle("service", "useDLQ")
+	if useDLQ {
+		kafkaProducerDLQ.SetConfig(kafkaConfigMap, appCfg.Get("broker", "topicNameDLQ"))
+		if err = kafkaProducerDLQ.Create(); err != nil {
+			log.Panicln(err)
+		}
+		defer kafkaProducerDLQ.Close()
 	}
-	defer kafkaProducerDLQ.Close()
 	/*
 		//TODO implement a single source of API schema for all the services
 			APISchema, err = os.ReadFile(appCfg.Get("api", "APISchemaFile"))
@@ -118,7 +124,7 @@ func main() {
 		appCfg.HotReloadConfigZK(zkInstance, []string{"broker_connection", "broker", "api"}, &kafkaConsumer, kafkaMessageHandler)
 		appCfg.HotReloadConfigZK(zkInstance, []string{"broker_connection", "broker", "api"}, &kafkaProducer, nil)
 
-		if appCfg.GetToggle("service", "useDLQ") {
+		if useDLQ {
 			appCfg.HotReloadConfigZK(zkInstance, []string{"broker_connection", "broker", "api"}, &kafkaProducerDLQ, nil)
 		}
 	}

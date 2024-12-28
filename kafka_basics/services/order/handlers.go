@@ -70,5 +70,4 @@ func orderHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("Error publishing event to Kafka: ", err.Error())
 		return
 	}
-
 }
