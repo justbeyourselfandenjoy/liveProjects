@@ -14,6 +14,16 @@ import (
 	"github.com/google/uuid"
 )
 
+func versionHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("versionHandler has been called")
+	w.Write([]byte("1.0.0"))
+}
+
+func upTimeHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("upTimeHandler has been called")
+	w.Write([]byte(time.Since(appStartTime).String()))
+}
+
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("healthHandler has been called")
 	w.WriteHeader(http.StatusOK)
@@ -44,7 +54,7 @@ func kafkaMessageHandler(msg *kafka.Message) {
 		log.Println("New event. Adding to the registry ...")
 		eventsRegistry.Add(baseEvent.EventID)
 	} else {
-		log.Println("Duplicate found. Skipping ...")
+		log.Println("Duplicated event found. Skipping ...")
 		return
 	}
 
@@ -71,13 +81,13 @@ func kafkaMessageHandler(msg *kafka.Message) {
 			log.Printf("Reducing number of [%s, %s] by %v\n", product.ID, product.ProductCode, product.Quantity)
 		}
 	} else {
+		eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSING_FAILED)
 		log.Printf("[WARN] Got an order with empty products. Skipping it...")
 		if useDLQ {
 			if err := publishDLQ(string(msg.Value)); err != nil {
 				log.Printf("Error creating DLQ: %s\n", err.Error())
 			}
 		}
-		eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSING_FAILED)
 		return
 	}
 
@@ -86,13 +96,13 @@ func kafkaMessageHandler(msg *kafka.Message) {
 		kafka_helpers.BuildBaseEvent(_appCfg.Get("broker", "eventNameProduce"), baseEvent.EventBody),
 		int(_appCfg.GetInt("broker_connection", "produceTimeout")),
 	); err != nil {
+		eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSING_FAILED)
 		if useDLQ {
 			if err := publishDLQ(string(msg.Value)); err != nil {
 				log.Printf("Error creating DLQ: %s\n", err.Error())
 			}
 		}
 		log.Println("Error publishing event to Kafka: ", err.Error())
-		eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSING_FAILED)
 		return
 	}
 	eventsRegistry.Set(baseEvent.EventID, kafka_helpers.EVENT_STATUS_PROCESSED)
@@ -100,6 +110,7 @@ func kafkaMessageHandler(msg *kafka.Message) {
 }
 
 func publishDLQ(msg string) error {
+	log.Println("Sending the message to DLQ")
 	if err := kafkaProducerDLQ.PublishEvent(
 		&kafka_helpers.BaseEvent{
 			EventID:        uuid.New(),

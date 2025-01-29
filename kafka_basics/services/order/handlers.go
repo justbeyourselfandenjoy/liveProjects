@@ -4,12 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"justbeyourselfandenjoy/kafka_basics/helpers/kafka_helpers"
 	"justbeyourselfandenjoy/service_order/swagger"
 	"log"
 	"net/http"
 )
+
+func versionHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("versionHandler has been called")
+	w.Write([]byte("1.0.0"))
+}
+
+func upTimeHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("upTimeHandler has been called")
+	w.Write([]byte(time.Since(appStartTime).String()))
+}
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("healthHandler has been called")

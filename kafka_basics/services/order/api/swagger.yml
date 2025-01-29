@@ -12,6 +12,20 @@ paths:
       responses:
         '200':
           description: OK
+  /uptime:
+    get:
+      summary: 'Uptime'
+      description: 'Application uptime'
+      responses:
+        '200':
+          description: OK
+  /version:
+    get:
+      summary: 'Version'
+      description: 'Application version'
+      responses:
+        '200':
+          description: OK
   /order/:
     post:
       summary: 'Accepting an order'

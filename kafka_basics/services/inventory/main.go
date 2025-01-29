@@ -21,18 +21,21 @@ var kafkaProducer kafka_helpers.KafkaProducer
 var kafkaProducerDLQ kafka_helpers.KafkaProducer
 var kafkaConfigMap *kafka.ConfigMap
 var eventsRegistry *kafka_helpers.EventsRegistry
+var appStartTime time.Time
 
 func registerHandlers(mux *http.ServeMux) {
+	mux.HandleFunc("GET /uptime", upTimeHandler)
+	mux.HandleFunc("GET /version", versionHandler)
 	mux.HandleFunc("GET /health", healthHandler)
 }
 
 func main() {
-	startTime := time.Now()
+	appStartTime = time.Now()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigs
-		log.Printf("Got %v signal. Exiting. Uptime %s\n", sig.String(), time.Since(startTime).String())
+		log.Printf("Got %v signal. Exiting. Uptime %s\n", sig.String(), time.Since(appStartTime).String())
 		os.Exit(0)
 	}()
 
